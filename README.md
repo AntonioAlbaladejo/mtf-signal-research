@@ -4,9 +4,9 @@ Research platform for systematic trading of crypto perpetual futures: multi-time
 order-book-aware execution, and a research protocol designed to tell a real effect from a lucky
 backtest.
 
-**Status:** phase 0 (foundations). There is no code yet, and **no claim of profitability**.
-Profitability is a hypothesis under test. If nothing beats a cost-adjusted random baseline, that is
-the result, and it will be documented as such.
+**Status:** phase 1 (data) complete; phase 2 (backtest engine) next. There is **no claim of
+profitability**. Profitability is a hypothesis under test. If nothing beats a cost-adjusted random
+baseline, that is the result, and it will be documented as such.
 
 ## Approach
 
@@ -30,6 +30,24 @@ the result, and it will be documented as such.
   phases and exit criteria
 - [docs/PROTOCOL.md](docs/PROTOCOL.md): research protocol
 - [docs/HYPOTHESES.md](docs/HYPOTHESES.md): pre-registered hypotheses
+- [docs/DATA.md](docs/DATA.md): data sources, universe, quality and measured venue facts
+
+## Getting the data
+
+Requires [uv](https://docs.astral.sh/uv/). The Hyperliquid archive also requires the AWS CLI with
+credentials, because downloads are billed to the requester.
+
+```bash
+uv sync
+uv run python -m src.binance klines/1d
+uv run python -m src.universe
+uv run python -m src.binance klines/1m --universe
+uv run python -m src.binance fundingRate --universe
+uv run python -m src.quality          # then fill any reported gaps:
+uv run python -m src.binance backfill
+uv run python -m src.quality
+uv run python -m src.hyperliquid gap
+```
 
 ## License
 

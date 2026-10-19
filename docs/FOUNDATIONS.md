@@ -31,10 +31,10 @@ equity curve nobody can audit.
 | D-05 | **Hybrid data** | Signals are researched on years of Binance USDⓈ-M history, covering several market regimes. Execution and costs are modelled on Hyperliquid. The price gap between the two venues is measured, not assumed. |
 | D-06 | **Universe: top 10 by liquidity, point-in-time** | Enough events for statistical power without dropping into thin order books. Point-in-time membership avoids survivorship bias. |
 | D-07 | **In-house backtester, built in phases** | A vectorised research layer (Polars/NumPy) comes first; most research happens there. The event-driven layer (NautilusTrader or an in-house C++ engine) is chosen when execution research starts. |
-| D-08 | **Research runs locally; the cloud is used only for 24/7 recording, and only if needed** | The order book is only needed from phase 5, and Hyperliquid's archive already holds L2 snapshots. If their cadence is enough, nothing is recorded. Otherwise, a minimal EC2 instance runs the recorder, with a billing alarm and an automatic stop. |
+| D-08 | **Research runs locally; no own order-book recording** | Decided in phase 1, against the measured archive: Hyperliquid stores a 20-level snapshot every ≈5.4 s since April 2023. That is enough for spread and slippage modelling. Trades with their aggressor side are archived too (§7), and they are sampled for maker-fill studies in phase 5. No cloud compute is needed. The only cloud cost is the requester-pays download, a few euros at most. |
 | D-09 | **Public repository from day one** | Commit timestamps are the evidence of pre-registration (PROTOCOL §1). If something ever works, its parameters live outside the repository. |
 | D-10 | **Broad research agenda, with classical TA first** | The agenda (§4) spans trend, derivatives positioning, volatility, cross-section, microstructure and ML. Classical TA goes first because it can be defined precisely, is widely used, is rarely tested against proper nulls, and exercises the whole pipeline (causality, nulls, multiple testing). |
-| D-11 | **Stack:** Python 3.12, uv, Polars, DuckDB, Parquet, NumPy, pytest, ruff | Columnar and fast enough for several years of 1-minute data. |
+| D-11 | **Stack:** Python 3.12, uv, Polars, Parquet, pytest, ruff | Columnar and fast enough for several years of 1-minute data. Other libraries are added only when code needs them. |
 | D-12 | **Language:** English for everything in the repository | |
 
 ## 3. Architecture: three layers, three questions
@@ -143,14 +143,17 @@ are never optimised together** before phase 4.
 | Source | What | Used for |
 |---|---|---|
 | `data.binance.vision` (USDⓈ-M) | 1-minute candles, aggregated trades and funding since 2020, with checksums | Signal research: regime and setup across several market regimes |
-| Hyperliquid archive on S3 (`hyperliquid-archive`, requester pays) | L2 snapshots and asset contexts | Order-book history. Uploaded roughly monthly, **may have gaps**, and contains no candles |
-| Hyperliquid websocket (own recording, only if justified: D-08) | L2 book, trades and asset context (funding, mark price, open interest) | Execution: slippage, maker versus taker, actual funding |
+| Hyperliquid archive on S3 (`hyperliquid-archive`, requester pays) | L2 snapshots (20 levels per side, ≈5.4 s apart, since 2023-04-15) and asset contexts | Spread and slippage. The archive is documented as **possibly incomplete**, and it holds no candles |
+| Hyperliquid node data on S3 (`hl-mainnet-node-data`, requester pays) | Every fill with its aggressor side, in hourly files for all coins (≈1 GB/day, since 2025-07-27) | Maker-fill and adverse-selection studies, on sampled windows |
 
-The archive holds no Hyperliquid candles, and the API serves only a recent window. If they are
-needed, we record them ourselves.
+Hyperliquid candles are neither archived nor served by the API beyond a recent window. Mid prices
+are taken from the snapshots instead. Measured details are in [DATA.md](DATA.md).
 
-**Point-in-time universe:** ranked by trailing 30-day quote volume on Binance perpetuals,
-recomputed monthly. For execution, intersected with the assets listed on Hyperliquid on that date.
+**Point-in-time universe:** each month, the top 10 by trailing 30-day quote volume on Binance,
+ranked on the daily bar that closes at the month boundary. Only USDT-quoted perpetuals are
+considered; quarterly contracts and stablecoin bases are excluded. A symbol with no bar on the last
+day of the previous month cannot enter. For execution, the universe is intersected with the assets
+listed on Hyperliquid on that date.
 
 ## 8. Phases and exit criteria
 
@@ -159,7 +162,7 @@ A phase is not closed until its exit criterion is met.
 | Phase | Content | Exit criterion |
 |---|---|---|
 | 0. Foundations | This document, protocol, hypotheses | Documents in the public repository |
-| 1. Data | Binance ingestion to Parquet; Hyperliquid archive sample; local recorder measurement | Quality report with no unexplained gaps. Decision to record or not, based on the measured archive cadence. If recording: ≥ 7 consecutive days, with a gap alarm and the cost per day measured |
+| 1. Data | Binance ingestion to Parquet; point-in-time universe; Hyperliquid archive measured; first venue comparison | Quality report with no unexplained gaps. Recording decision taken from the measured archive cadence (D-08). Dataset frozen and hold-out sealed |
 | 2. Engine | Vectorised backtester, cost model, null-baseline generator | Future-invariance test passing on every feature. Multi-timeframe alignment tested. **Random entries ≈ −costs**, which validates the cost model |
 | 3. Hypotheses | Event studies for family A; multi-timeframe strategies with walk-forward; exit ablation | A written verdict per hypothesis; survivors confirmed once on the sealed hold-out |
 | 4. ML | Meta-labelling: triple barrier, purged CV, calibration, SHAP | The calibrated model beats hard filters on validation, net of costs, or it is documented that it does not |

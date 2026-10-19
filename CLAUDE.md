@@ -9,8 +9,36 @@ multi-timeframe: regime 4h/1d, setup 1h/15m, execution 1m + order book. Signals 
 Binance USDⓈ-M history, and the execution venue is Hyperliquid. Profitability is a hypothesis under
 test, never a premise.
 
-**Phase 0 (foundations): no code yet.** If `docs/WORKLOG.md` exists locally, read it first. It is
-deliberately not versioned.
+**Phase 1 (data) is complete; next is phase 2 (engine).** If `docs/WORKLOG.md` exists locally,
+read it first. It is deliberately not versioned.
+
+## Commands
+
+```bash
+uv sync                                               # install (creates .venv)
+uv run pytest                                         # tests
+uv run ruff check . && uv run ruff format --check .   # lint
+uv run python -m src.binance klines/1d                # daily bars, every USDT perpetual
+uv run python -m src.universe                         # point-in-time universe
+uv run python -m src.binance klines/1m --universe     # 1m bars for every universe member
+uv run python -m src.binance fundingRate --universe
+uv run python -m src.quality                          # gaps, stalls, bad bars, funding steps
+uv run python -m src.binance backfill                 # fill reported gaps from daily archives
+uv run python -m src.hyperliquid gap                  # venue price gap (needs the AWS CLI)
+```
+
+## Layout
+
+| Path | Role |
+|------|------|
+| `src/data.py` | Paths, `HOLDOUT_START`, and `scan()`, the guarded loader all research code must use |
+| `src/binance.py` | data.binance.vision archives to checksum-verified Parquet |
+| `src/universe.py` | Point-in-time top-10 universe |
+| `src/quality.py` | Structural data checks |
+| `src/hyperliquid.py` | Hyperliquid archive snapshots and the venue price gap |
+| `tests/` | pytest |
+
+`data/` is generated and never committed.
 
 ## Non-negotiable research rules
 
@@ -58,7 +86,7 @@ agenda.
 
 ## Conventions
 
-- Python 3.12 · uv · Polars · DuckDB · Parquet · NumPy · pytest · ruff (set up in phase 1).
+- Python 3.12 · uv · Polars · Parquet · pytest · ruff. Add other dependencies only when code needs them.
 - Always use `uv run ...`, never `pip install`. A new dependency means editing `pyproject.toml` and
   running `uv sync`.
 - Secrets (the Hyperliquid API wallet key) live in a secrets manager, never in the repository.

@@ -38,7 +38,9 @@ A trial that goes unregistered inflates every result.
 - The data loader **refuses** to serve sealed dates unless called with `unseal=True`, and every such
   access is logged in the trial registry.
 - Each hypothesis family touches the hold-out **once**, at the end, to confirm or reject.
-- Everything recorded on Hyperliquid after the freeze is, by construction, forward data.
+- Everything published after the freeze is, by construction, forward data.
+- **Structural reads are allowed.** Universe construction and data-quality checks may read sealed
+  dates, because they use only volumes, timestamps and bar consistency, never returns or signals.
 
 ## 4. Causality (no look-ahead)
 
@@ -72,6 +74,9 @@ No result is read in isolation. Every signal is compared with:
   where available, otherwise a conservative multiple of the spread) and funding.
 - **Intrabar ambiguity:** if both the SL and the TP fall inside the same bar, resolve it with
   1-minute data. If it is still ambiguous, assume the **worst case**.
+- **Zero-volume bars are untradable.** The archive pads exchange outages with flat zero-volume bars
+  (DATA.md §3). No order fills in them, and they do not trigger stops. A position held through one
+  is exposed to the jump at the next traded bar.
 - **Cost-model sanity check:** a random-entry strategy must return ≈ −costs. If it returns
   anything else, the cost model is wrong.
 
