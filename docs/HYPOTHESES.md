@@ -25,9 +25,15 @@ Used to match nulls and to stratify results. It is never optimised.
 
 This gives 3 × 3 = 9 regime cells.
 
+- **Warm-up:** an indicator is undefined until its lookback is filled. That means 200 bars for
+  EMA(200), 220 for its 20-bar slope and 14 for ATR(14); the volatility tercile needs at least 180
+  daily bars in its window. Events whose R0 is undefined are excluded.
+
 ### Forward-return horizons
 
-Counted from the open of the bar after the event.
+Counted from the open of the bar after the event: in practice, the first traded 1-minute open at
+or after the event bar's close, because zero-volume bars are untradable (PROTOCOL §6). Exits are
+taken the same way. Returns are divided by the event bar's ATR(14) as a fraction of its close.
 
 | Event timeframe | Horizons |
 |---|---|
@@ -43,6 +49,13 @@ round-trip cost (maker entry, taker exit ≈ 0.06 %) plus the estimated slippage
 ### Data
 
 Binance USDⓈ-M, point-in-time top-10 universe, from 2020 to the start of the sealed hold-out.
+
+### Breakdown by asset
+
+Every result is also reported separately for BTC, for ETH and for the remaining assets, as a point
+estimate with its bootstrap interval and no p-value. BTC and ETH are the two most liquid assets
+and the cheapest to trade, so an effect pooled across the universe may not hold for them. The
+breakdowns only describe where an effect comes from: they decide nothing and enter no FDR family.
 
 ---
 
