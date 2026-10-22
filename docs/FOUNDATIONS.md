@@ -89,8 +89,8 @@ Starting points in the literature, not claims about what will hold here:
 | Hyperliquid perps | 0.015 % | 0.045 % | 0.09 % | 0.03 % |
 | Binance USDⓈ-M (reference) | 0.02 % | 0.05 % | 0.10 % | 0.04 % |
 
-Slippage, measured on the recorded book, comes on top, and so does funding, which Hyperliquid
-settles hourly.
+Slippage comes on top: half the spread between Hyperliquid's impact bid and ask prices, per symbol
+and hour (PROTOCOL §6). So does funding, which Hyperliquid settles hourly.
 
 The example that shapes everything: a strategy that wins 55 % of the time, with an average win and
 loss of 0.5 %, expects 0.05 % gross per trade. That is less than a taker round trip. **"Several trades
@@ -163,7 +163,7 @@ A phase is not closed until its exit criterion is met.
 |---|---|---|
 | 0. Foundations | This document, protocol, hypotheses | Documents in the public repository |
 | 1. Data | Binance ingestion to Parquet; point-in-time universe; Hyperliquid archive measured; first venue comparison | Quality report with no unexplained gaps. Recording decision taken from the measured archive cadence (D-08). Dataset frozen and hold-out sealed |
-| 2. Engine | Vectorised backtester, cost model, null-baseline generator | Future-invariance test passing on every feature. Multi-timeframe alignment tested. **Random entries ≈ −costs**, which validates the cost model |
+| 2. Engine | Multi-timeframe bars and as-of alignment; base indicators and R0; Hyperliquid cost data and cost model; 1-minute trade simulator; event-study engine; trial registry; metrics | Future-invariance test passing on every feature. Multi-timeframe alignment tested. Bars match Binance's native daily klines. **Random entries ≈ −costs**, which validates the cost model. The bootstrap is calibrated: uniform p-values without an effect, and a planted effect recovered |
 | 3. Hypotheses | Event studies for family A; multi-timeframe strategies with walk-forward; exit ablation | A written verdict per hypothesis; survivors confirmed once on the sealed hold-out |
 | 4. ML | Meta-labelling: triple barrier, purged CV, calibration, SHAP | The calibrated model beats hard filters on validation, net of costs, or it is documented that it does not |
 | 5. Execution | Maker versus taker on the recorded book | Implementation shortfall, fill rate and adverse selection measured |
