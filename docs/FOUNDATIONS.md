@@ -89,8 +89,8 @@ Starting points in the literature, not claims about what will hold here:
 | Hyperliquid perps | 0.015 % | 0.045 % | 0.09 % | 0.03 % |
 | Binance USDⓈ-M (reference) | 0.02 % | 0.05 % | 0.10 % | 0.04 % |
 
-Slippage comes on top: half the spread between Hyperliquid's impact bid and ask prices, per symbol
-and hour (PROTOCOL §6). So does funding, which Hyperliquid settles hourly.
+Slippage comes on top: half the spread between Hyperliquid's impact bid and ask prices at the
+minute of the fill (PROTOCOL §6). So does funding, which Hyperliquid settles hourly.
 
 The example that shapes everything: a strategy that wins 55 % of the time, with an average win and
 loss of 0.5 %, expects 0.05 % gross per trade. That is less than a taker round trip. **"Several trades

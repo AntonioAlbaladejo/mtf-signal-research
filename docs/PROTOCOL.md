@@ -9,7 +9,9 @@ that; counting the trials and fixing the rules before looking does.
 
 **Amended 2026-10-19, before any hypothesis was tested:** §5 and §7 replace a null of 1,000
 independent random draws with a matched baseline plus a calendar-block bootstrap, and §6 fixes the
-cost model.
+cost model. **Amended 2026-10-25, before any hypothesis was tested:** §6 prices slippage at the
+minute of each fill instead of at the hour's median, because fills cluster after fast moves, when
+the book is thinner.
 
 ---
 
@@ -80,7 +82,8 @@ No result is read in isolation. Every signal is compared with:
 - **Costs are Hyperliquid's** (FOUNDATIONS D-04):
   - base-tier maker and taker fees;
   - slippage equal to half the spread between Hyperliquid's impact bid and ask prices for that
-    symbol and hour, i.e. the average fill of 20,000 USDC on BTC and ETH, 6,000 USDC elsewhere;
+    symbol at the minute of the fill (the hour's median if that minute is missing), i.e. the
+    average fill of a market order of 20,000 USDC on BTC and ETH, 6,000 USDC elsewhere;
   - Hyperliquid's hourly funding.
 
   Where Hyperliquid has no data (before 2023-05-20, or for a symbol not yet listed), a cost level
