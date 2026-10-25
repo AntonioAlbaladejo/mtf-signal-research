@@ -64,13 +64,20 @@ def clean(minutes: pl.DataFrame) -> pl.DataFrame:
     impact_bps is the half-spread between the impact prices, i.e. the slippage of a market order
     of the impact notional. Minutes with a zero mid or impact price are dropped: the archive
     writes zeros before a listing, after a delisting, and when the book is too thin to fill the
-    impact notional, which is rare (16 minutes on 2023-06-01, none since). A few snapshots are
-    stamped seconds late, hence the truncation.
+    impact notional, which is rare (16 minutes on 2023-06-01, none since). Some snapshots are
+    stamped seconds late, sometimes as a second one in the same minute (5,373 coin-minutes); the
+    first one, closest to the minute's open where fills happen, is kept.
     """
     t = pl.col("time").str.strptime(pl.Datetime("ms", "UTC"), "%Y-%m-%dT%H:%M:%SZ")
     half_spread = (pl.col("impact_ask_px") - pl.col("impact_bid_px")) / 2 / pl.col("mid_px")
     book = pl.min_horizontal("mid_px", "impact_bid_px", "impact_ask_px") > 0
-    return minutes.filter(book).with_columns(time=t.dt.truncate("1m"), impact_bps=half_spread * 1e4)
+    return (
+        minutes.filter(book)
+        .with_columns(time=t, impact_bps=half_spread * 1e4)
+        .sort("coin", "time")
+        .with_columns(pl.col("time").dt.truncate("1m"))
+        .unique(["coin", "time"], keep="first", maintain_order=True)
+    )
 
 
 def hourly(minutes: pl.DataFrame) -> pl.DataFrame:

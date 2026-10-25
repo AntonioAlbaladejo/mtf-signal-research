@@ -24,6 +24,7 @@ def test_hourly_contexts_take_median_impact_and_last_funding():
     rows = [  # coin, minute, funding, mid, impact bid, impact ask
         ("BTC", "2024-01-01T00:00:00Z", 0.1, 100.0, 99.0, 101.0),  # half-spread 100 bps
         ("BTC", "2024-01-01T00:30:16Z", 0.2, 100.0, 99.8, 100.2),  # 20 bps, stamped late
+        ("BTC", "2024-01-01T00:30:44Z", 0.25, 100.0, 99.0, 101.0),  # same minute again: dropped
         ("BTC", "2024-01-01T00:59:00Z", 0.3, 100.0, 99.9, 100.1),  # 10 bps
         ("BTC", "2024-01-01T01:00:00Z", 0.4, 200.0, 199.0, 201.0),
         ("BTC", "2024-01-01T01:01:00Z", 0.0, 0.0, 0.0, 0.0),  # delisted: no book, dropped
