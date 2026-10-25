@@ -9,8 +9,8 @@ multi-timeframe: regime 4h/1d, setup 1h/15m, execution 1m + order book. Signals 
 Binance USDⓈ-M history, and the execution venue is Hyperliquid. Profitability is a hypothesis under
 test, never a premise.
 
-**Phase 1 (data) is complete; next is phase 2 (engine).** If `docs/WORKLOG.md` exists locally,
-read it first. It is deliberately not versioned.
+**Current phase: 2 (engine).** If `docs/WORKLOG.md` exists locally, read it first. It is
+deliberately not versioned.
 
 ## Commands
 
@@ -25,7 +25,25 @@ uv run python -m src.binance fundingRate --universe
 uv run python -m src.quality                          # gaps, stalls, bad bars, funding steps
 uv run python -m src.binance backfill                 # fill reported gaps from daily archives
 uv run python -m src.hyperliquid gap                  # venue price gap (needs the AWS CLI)
+uv run python -m src.hyperliquid ctx                  # Hyperliquid costs by hour and minute
+uv run python -m src.bars                             # 15m/1h/4h/1d bars, checked vs native 1d
+uv run python -m src.costs                            # Binance -> Hyperliquid symbol mapping
+uv run python -m src.events candidates 1h             # event-study candidates per timeframe
+uv run python -m src.events random 1h                 # validation: random events show no effect
+uv run python -m src.backtest random                  # validation: random entries lose ~costs
 ```
+
+Heavy jobs run in the background, capped so that a job that grows too large dies alone instead of
+pushing the system into swap:
+
+```bash
+systemd-run --user --scope -q -p MemoryMax=6G -p MemorySwapMax=0 \
+  nice -n 19 ionice -c 3 env POLARS_MAX_THREADS=4 uv run python -m src.<module> ...
+```
+
+At most 4 workers. Exit code 137 means the cap was hit. Minute-level data (243 M Hyperliquid
+rows, 230 M Binance klines) is never loaded whole: read lazily with filters, per symbol or per
+day, and use `collect(engine="streaming")` for full-archive aggregations.
 
 ## Layout
 
@@ -35,8 +53,16 @@ uv run python -m src.hyperliquid gap                  # venue price gap (needs t
 | `src/binance.py` | data.binance.vision archives to checksum-verified Parquet |
 | `src/universe.py` | Point-in-time top-10 universe |
 | `src/quality.py` | Structural data checks |
-| `src/hyperliquid.py` | Hyperliquid archive snapshots and the venue price gap |
-| `tests/` | pytest |
+| `src/hyperliquid.py` | Hyperliquid archive: L2 snapshots, asset contexts per hour and minute |
+| `src/bars.py` | Multi-timeframe bars from 1m, and `asof()`, the only way to join timeframes |
+| `src/indicators.py` | Causal EMA, Wilder average, ATR, RSI with warm-up |
+| `src/regime.py` | R0, the pre-registered regime |
+| `src/costs.py` | Hyperliquid fees, fill-minute slippage and funding, with documented fallbacks |
+| `src/backtest.py` | 1-minute trade simulator and equal-risk daily returns |
+| `src/events.py` | Event studies: forward returns, matched baseline, block bootstrap |
+| `src/stats.py` | Calendar-block bootstrap, FDR, Sharpe/Sortino/Calmar, PSR and DSR |
+| `src/registry.py` | Append-only `research/trials.jsonl`; hold-out access, once per family |
+| `tests/` | pytest; `tests/causality.py` holds the future-invariance check every feature needs |
 
 `data/` is generated and never committed.
 
@@ -47,13 +73,14 @@ Full text in [docs/PROTOCOL.md](docs/PROTOCOL.md), which overrides everything el
 - **Pre-register before testing.** A hypothesis entry in [docs/HYPOTHESES.md](docs/HYPOTHESES.md) is
   committed before its test runs. Never edit an entry after its test ran; add a variant instead.
 - **Log every trial,** including failed and discarded ones, in an append-only registry.
-- **Sealed hold-out:** the most recent 6 months at dataset freeze. Never read it without
-  `unseal=True`.
+- **Sealed hold-out:** the most recent 6 months at dataset freeze. Never read it except through
+  `scan(..., unseal_for="H<n>")`, which logs the access; each family gets one.
 - **Causality.** Bars are indexed by close, and an event at the close of bar *t* trades at the open
   of *t+1*. Joins across timeframes are as-of on close time. Pivots carry `confirmed_at`. Every
   feature needs a future-invariance test.
-- **Always net of costs,** compared with a matched random-entry null. If SL and TP fall in the same
-  bar, resolve it with 1-minute data; otherwise assume the worst case.
+- **Always net of costs,** compared with a matched baseline, the exact expectation of a matched
+  random entry. If SL and TP fall in the same bar, resolve it with 1-minute data; otherwise assume
+  the worst case.
 
 ## Default coding mode: ponytail
 

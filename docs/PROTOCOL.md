@@ -41,8 +41,9 @@ A trial that goes unregistered inflates every result.
 
 - The **most recent 6 months** at the moment the research dataset is frozen (end of phase 1) are
   sealed.
-- The data loader **refuses** to serve sealed dates unless called with `unseal=True`, and every such
-  access is logged in the trial registry.
+- The data loader **refuses** to serve sealed dates unless called with `unseal_for=<hypothesis>`.
+  Every such access is logged in the trial registry, and a second one by the same family is
+  refused.
 - Each hypothesis family touches the hold-out **once**, at the end, to confirm or reject.
 - Everything published after the freeze is, by construction, forward data.
 - **Structural reads are allowed.** Universe construction and data-quality checks may read sealed

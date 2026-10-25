@@ -161,6 +161,6 @@ How to read it:
 ## 6. Freeze and hold-out
 
 The research dataset was frozen on **2026-10-18**: Binance monthly archives up to 2026-09.
-The hold-out runs from **2026-04-01 to 2026-09-30** and is sealed. `src.data.scan()` never serves
-it, and unsealing is refused until the trial registry exists (PROTOCOL §3). Data published after
-the freeze is forward data.
+The hold-out runs from **2026-04-01 to 2026-09-30** and is sealed. `src.data.scan()` serves it
+only with `unseal_for=<hypothesis>`, which logs the access in the trial registry and refuses a
+second one for the same family (PROTOCOL §3). Data published after the freeze is forward data.
