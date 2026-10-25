@@ -8,7 +8,7 @@ Downloads are billed to the caller's AWS account, so raw files are cached and ea
 for once. Needs the AWS CLI with credentials.
 
     uv run python -m src.hyperliquid gap      # writes data/hyperliquid/venue_gap.csv
-    uv run python -m src.hyperliquid ctx      # writes data/hyperliquid/ctx_hourly/<day>.parquet
+    uv run python -m src.hyperliquid ctx      # writes data/hyperliquid/ctx_{hourly,minute}/
 """
 
 import argparse
@@ -58,26 +58,34 @@ def raw_l2(coin: str, day: date, hour: int) -> bytes | None:
     return cached(key, HL / "l2" / coin / f"{day:%Y%m%d}-{hour:02d}.lz4")
 
 
-def hourly(minutes: pl.DataFrame) -> pl.DataFrame:
-    """Per-minute asset contexts -> one row per coin and hour, `time` being the hour's start.
+def clean(minutes: pl.DataFrame) -> pl.DataFrame:
+    """Raw asset contexts with a book, `time` truncated to the minute, and `impact_bps`.
 
-    impact_bps is the median half-spread between the impact prices, i.e. the slippage of a market
-    order of the impact notional. funding is the hour's last estimate, which approximates the
-    rate settled at the end of the hour. Minutes with a zero mid or impact price are dropped: the
-    archive writes zeros before a listing, after a delisting, and when the book is too thin to
-    fill the impact notional, which is rare (16 minutes on 2023-06-01, none since).
+    impact_bps is the half-spread between the impact prices, i.e. the slippage of a market order
+    of the impact notional. Minutes with a zero mid or impact price are dropped: the archive
+    writes zeros before a listing, after a delisting, and when the book is too thin to fill the
+    impact notional, which is rare (16 minutes on 2023-06-01, none since). A few snapshots are
+    stamped seconds late, hence the truncation.
     """
     t = pl.col("time").str.strptime(pl.Datetime("ms", "UTC"), "%Y-%m-%dT%H:%M:%SZ")
     half_spread = (pl.col("impact_ask_px") - pl.col("impact_bid_px")) / 2 / pl.col("mid_px")
     book = pl.min_horizontal("mid_px", "impact_bid_px", "impact_ask_px") > 0
+    return minutes.filter(book).with_columns(time=t.dt.truncate("1m"), impact_bps=half_spread * 1e4)
+
+
+def hourly(minutes: pl.DataFrame) -> pl.DataFrame:
+    """Raw asset contexts -> one row per coin and hour, `time` being the hour's start.
+
+    impact_bps is the hour's median, the fallback for a fill whose minute is missing. funding is
+    the hour's last estimate, which approximates the rate settled at the end of the hour.
+    """
     return (
-        minutes.filter(book)
-        .with_columns(time=t)
+        clean(minutes)
         .sort("coin", "time")
         .group_by("coin", pl.col("time").dt.truncate("1h"))
         .agg(
             mid=pl.col("mid_px").last(),
-            impact_bps=(half_spread * 1e4).median(),
+            impact_bps=pl.col("impact_bps").median(),
             funding=pl.col("funding").last(),
             open_interest=pl.col("open_interest").last(),
             day_ntl_vlm=pl.col("day_ntl_vlm").last(),
@@ -87,13 +95,14 @@ def hourly(minutes: pl.DataFrame) -> pl.DataFrame:
 
 
 def ctx_day(day: date) -> None:
-    out = HL / "ctx_hourly" / f"{day:%Y%m%d}.parquet"
-    if out.exists():
+    hour_out, minute_out = (HL / d / f"{day:%Y%m%d}.parquet" for d in ("ctx_hourly", "ctx_minute"))
+    if hour_out.exists() and minute_out.exists():
         return
     raw = cached(f"asset_ctxs/{day:%Y%m%d}.csv.lz4", HL / "ctx" / f"{day:%Y%m%d}.csv.lz4")
     if raw is not None:
         minutes = pl.read_csv(lz4.frame.decompress(raw), schema=CTX_SCHEMA, has_header=True)
-        write(out, hourly(minutes))
+        write(hour_out, hourly(minutes))
+        write(minute_out, clean(minutes).select("coin", "time", "impact_bps"))
 
 
 def top_of_book(raw: bytes) -> pl.DataFrame:

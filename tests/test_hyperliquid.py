@@ -3,7 +3,7 @@ import json
 import lz4.frame
 import polars as pl
 
-from src.hyperliquid import CTX_SCHEMA, hourly, top_of_book
+from src.hyperliquid import CTX_SCHEMA, clean, hourly, top_of_book
 
 
 def snapshot(t: int, bids: list[str], asks: list[str]) -> bytes:
@@ -23,7 +23,7 @@ def test_best_bid_is_first_level_of_first_side_and_empty_sides_are_skipped():
 def test_hourly_contexts_take_median_impact_and_last_funding():
     rows = [  # coin, minute, funding, mid, impact bid, impact ask
         ("BTC", "2024-01-01T00:00:00Z", 0.1, 100.0, 99.0, 101.0),  # half-spread 100 bps
-        ("BTC", "2024-01-01T00:30:00Z", 0.2, 100.0, 99.8, 100.2),  # 20 bps
+        ("BTC", "2024-01-01T00:30:16Z", 0.2, 100.0, 99.8, 100.2),  # 20 bps, stamped late
         ("BTC", "2024-01-01T00:59:00Z", 0.3, 100.0, 99.9, 100.1),  # 10 bps
         ("BTC", "2024-01-01T01:00:00Z", 0.4, 200.0, 199.0, 201.0),
         ("BTC", "2024-01-01T01:01:00Z", 0.0, 0.0, 0.0, 0.0),  # delisted: no book, dropped
@@ -34,6 +34,14 @@ def test_hourly_contexts_take_median_impact_and_last_funding():
         schema=list(CTX_SCHEMA),
         orient="row",
     )
+    m = clean(minutes)
+    assert m["time"].dt.strftime("%H:%M:%S").to_list() == [
+        "00:00:00",
+        "00:30:00",
+        "00:59:00",
+        "01:00:00",
+    ]
+    assert m["impact_bps"].round(6).to_list() == [100.0, 20.0, 10.0, 50.0]
     h = hourly(minutes)
     assert h["funding"].to_list() == [0.3, 0.4]
     assert h["mid"].to_list() == [100.0, 200.0]
