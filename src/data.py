@@ -13,16 +13,26 @@ HOLDOUT_START = datetime(2026, 4, 1, tzinfo=UTC)
 
 
 def files(kind: str, symbols: list[str] | None = None) -> list[Path]:
-    """Monthly Parquet files of a Binance dataset ("klines/1m", "klines/1d", "fundingRate").
+    """Parquet files of a Binance dataset ("klines/1m", "klines/1d", "fundingRate", "bars/1h"...).
 
-    Unguarded: only universe construction and data-quality checks may read these directly.
+    Unguarded: only data building, universe construction and quality checks read these directly.
     """
     root = DATA / "binance" / "um" / kind
     return sorted(p for s in symbols or ["*"] for p in root.glob(f"{s}/*.parquet"))
 
 
-def scan(kind: str, symbols: list[str] | None = None, unseal: bool = False) -> pl.LazyFrame:
-    """Lazy scan of a Binance dataset with every row from the sealed hold-out removed."""
-    if unseal:
-        raise NotImplementedError("unsealing must be logged in the trial registry (phase 2)")
-    return pl.scan_parquet(files(kind, symbols)).filter(pl.col("time") < HOLDOUT_START)
+def scan(
+    kind: str, symbols: list[str] | None = None, unseal_for: str | None = None
+) -> pl.LazyFrame:
+    """Lazy scan of a Binance dataset, with every row from the sealed hold-out removed.
+
+    `unseal_for` names the hypothesis that opens the hold-out; the access is logged, and a second
+    one for the same family is refused (PROTOCOL §3).
+    """
+    lf = pl.scan_parquet(files(kind, symbols))
+    if unseal_for is None:
+        return lf.filter(pl.col("time") < HOLDOUT_START)
+    from src.registry import unseal
+
+    unseal(unseal_for, f"scan {kind}")
+    return lf
