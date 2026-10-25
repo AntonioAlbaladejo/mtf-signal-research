@@ -4,9 +4,9 @@ Research platform for systematic trading of crypto perpetual futures: multi-time
 order-book-aware execution, and a research protocol designed to tell a real effect from a lucky
 backtest.
 
-**Status:** phase 1 (data) complete; phase 2 (backtest engine) next. There is **no claim of
-profitability**. Profitability is a hypothesis under test. If nothing beats a cost-adjusted random
-baseline, that is the result, and it will be documented as such.
+**Status:** phases 1 (data) and 2 (engine) complete; phase 3 (hypotheses) next. There is **no
+claim of profitability**. Profitability is a hypothesis under test. If nothing beats a
+cost-adjusted random baseline, that is the result, and it will be documented as such.
 
 ## Approach
 
@@ -17,8 +17,8 @@ baseline, that is the result, and it will be documented as such.
   momentum, multi-timeframe confluence, derivatives positioning (funding, open interest),
   volatility, cross-sectional effects, microstructure for execution, and ML meta-labelling.
 - **Hybrid data.** Signals are researched on years of Binance USDⓈ-M history. Execution and costs
-  are modelled on Hyperliquid order-book data: its archive snapshots, plus our own recording only if
-  their cadence falls short.
+  are modelled on Hyperliquid's own archive: impact prices for every minute, hourly funding and
+  order-book snapshots.
 - **Pre-registration.** Every hypothesis is committed with its null, metric and decision rule before
   it is tested. Every trial is logged, so that the Deflated Sharpe Ratio can account for all of them.
 - **Causality, enforced by tests.** Every feature must pass a future-invariance test. Joins across
@@ -31,6 +31,8 @@ baseline, that is the result, and it will be documented as such.
 - [docs/PROTOCOL.md](docs/PROTOCOL.md): research protocol
 - [docs/HYPOTHESES.md](docs/HYPOTHESES.md): pre-registered hypotheses
 - [docs/DATA.md](docs/DATA.md): data sources, universe, quality and measured venue facts
+- [docs/ENGINE.md](docs/ENGINE.md): bars, regime, costs, trade simulation, event studies,
+  statistics, and their validation
 
 ## Getting the data
 
@@ -47,6 +49,19 @@ uv run python -m src.quality          # then fill any reported gaps:
 uv run python -m src.binance backfill
 uv run python -m src.quality
 uv run python -m src.hyperliquid gap
+uv run python -m src.hyperliquid ctx                 # Hyperliquid costs by hour and minute
+uv run python -m src.bars                            # 15m, 1h, 4h and 1d bars
+uv run python -m src.costs                           # Binance -> Hyperliquid symbol mapping
+uv run python -m src.events candidates 1h            # also 4h and 1d
+```
+
+## Validating the engine
+
+Both commands log their results in `research/trials.jsonl`.
+
+```bash
+uv run python -m src.backtest random      # random entries: ~0 gross, ~minus costs net
+uv run python -m src.events random 1h     # random events: no effect (also 4h and 1d)
 ```
 
 ## License

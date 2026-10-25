@@ -9,7 +9,7 @@ multi-timeframe: regime 4h/1d, setup 1h/15m, execution 1m + order book. Signals 
 Binance USDⓈ-M history, and the execution venue is Hyperliquid. Profitability is a hypothesis under
 test, never a premise.
 
-**Current phase: 2 (engine).** If `docs/WORKLOG.md` exists locally, read it first. It is
+**Current phase: 3 (hypotheses).** If `docs/WORKLOG.md` exists locally, read it first. It is
 deliberately not versioned.
 
 ## Commands
