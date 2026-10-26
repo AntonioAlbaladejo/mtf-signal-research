@@ -4,7 +4,7 @@ Research platform for systematic trading of crypto perpetual futures: multi-time
 order-book-aware execution, and a research protocol designed to tell a real effect from a lucky
 backtest.
 
-**Status:** phases 1 (data) and 2 (engine) complete; phase 3 (hypotheses) next. There is **no
+**Status:** phases 1 (data) and 2 (engine) complete; phase 3 (hypotheses) in progress. There is **no
 claim of profitability**. Profitability is a hypothesis under test. If nothing beats a
 cost-adjusted random baseline, that is the result, and it will be documented as such.
 
@@ -33,6 +33,7 @@ cost-adjusted random baseline, that is the result, and it will be documented as 
 - [docs/DATA.md](docs/DATA.md): data sources, universe, quality and measured venue facts
 - [docs/ENGINE.md](docs/ENGINE.md): bars, regime, costs, trade simulation, event studies,
   statistics, and their validation
+- [docs/RESULTS.md](docs/RESULTS.md): the outcome of each pre-registered test
 
 ## Getting the data
 

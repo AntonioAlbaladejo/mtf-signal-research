@@ -61,7 +61,8 @@ breakdowns only describe where an effect comes from: they decide nothing and ent
 
 ## H1: TD Sequential anticipates exhaustion
 
-**Status:** pre-registered.
+**Status:** rejected in all 54 cells, before the hold-out (26 October 2026;
+[RESULTS.md](RESULTS.md)).
 
 **Definition** (the canonical version in J. Perl, *DeMark Indicators*, 2008; any other version is a
 variant):
