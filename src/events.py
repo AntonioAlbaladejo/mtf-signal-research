@@ -76,6 +76,9 @@ def study(
     drop out; `matched` reports how many remain.
     """
     e = events.join(cands, on=["symbol", "time"])
+    year = pl.col("month").dt.year()
+    by_year = cands.group_by(year).agg(months=pl.col("month").n_unique())
+    complete = by_year.filter(pl.col("months") == 12)["month"]  # stability counts these only
     rows = []
     for h in HORIZONS[tf]:
         r = f"r{h}"
@@ -85,9 +88,11 @@ def study(
         row = {"horizon": h, "events": events.height, "matched": e.height, "n": d.height}
         if d.height:
             row |= bootstrap_test(d["diff"], d["month"], alternative, reps, seed)
-            for name, by in (("years", pl.col("month").dt.year()), ("assets", pl.col("symbol"))):
-                means = d.group_by(by).agg(pl.col("diff").mean())["diff"].to_numpy()
-                row[f"{name}_same_sign"] = float(np.mean(np.sign(means) == np.sign(row["effect"])))
+            full_years = d.filter(year.is_in(complete.implode()))
+            for name, g, by in (("years", full_years, year), ("assets", d, pl.col("symbol"))):
+                means = g.group_by(by).agg(pl.col("diff").mean())["diff"].to_numpy()
+                same = np.sign(means) == np.sign(row["effect"])
+                row[f"{name}_same_sign"] = float(same.mean()) if len(same) else None
             major = {"btc": "BTCUSDT", "eth": "ETHUSDT"}  # descriptive breakdown, no p-value
             groups = {k: d.filter(pl.col("symbol") == s) for k, s in major.items()}
             groups["other"] = d.filter(~pl.col("symbol").is_in(list(major.values())))

@@ -35,7 +35,7 @@ def test_regime_drift_is_not_mistaken_for_an_effect():
 
 
 def test_planted_effect_and_direction_are_recovered():
-    cands = candidates()
+    cands = candidates(9000)  # 2022 is a complete year
     chosen = (pl.col("time").dt.hour() == 6) & (pl.col("cell") == "down")
     cands = cands.with_columns(r4=pl.when(chosen).then(pl.col("r4") - 0.5).otherwise("r4"))
     shorts = events_at(cands, chosen, -1)  # the planted move is down, so shorts gain 0.5
@@ -46,6 +46,16 @@ def test_planted_effect_and_direction_are_recovered():
     assert result["btc_effect"][0] == pytest.approx(0.5, abs=0.2)  # no ETH in this universe
     assert result["btc_n"][0] + result["other_n"][0] == result["n"][0]
     assert "eth_effect" not in result.columns and "btc_p" not in result.columns
+
+
+def test_stability_counts_complete_years_only():
+    cands = candidates(9000)  # 2022 is complete; 2023 has only January
+    chosen = pl.col("time").dt.hour() == 6
+    sign = pl.when(pl.col("time").dt.year() == 2022).then(1.0).otherwise(-1.0)
+    cands = cands.with_columns(r4=pl.when(chosen).then(pl.col("r4") + sign).otherwise("r4"))
+    result = study(events_at(cands, chosen, 1), cands, "1h", reps=100)
+    assert result["effect"][0] > 0.5
+    assert result["years_same_sign"][0] == 1.0  # January 2023 goes the other way and is ignored
 
 
 def test_no_matched_event_is_reported_not_crashed():

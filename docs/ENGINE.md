@@ -117,9 +117,10 @@ would undercharge a trade that ends at its stop by about 3-4 bps.
   stratum includes the event bars themselves, which pulls the effect slightly towards zero; this
   is conservative and negligible for sparse signals.
 - **Inference:** the event-minus-baseline differences are bootstrapped by calendar month, jointly
-  across assets (PROTOCOL §7). Stability is reported as the share of years and of assets whose
-  mean has the sign of the overall effect. The breakdown for BTC, ETH and the remaining assets
-  (HYPOTHESES.md) gives each group's effect and interval, with no p-value.
+  across assets (PROTOCOL §7). Stability is reported as the share of complete calendar years
+  (2021 to 2025 before the hold-out) and of assets whose mean has the sign of the overall effect.
+  The breakdown for BTC, ETH and the remaining assets (HYPOTHESES.md) gives each group's effect
+  and interval, with no p-value.
 - **Tests:** buying in an up-trending regime shows no effect, because the regime's drift is not
   mistaken for a signal. A planted effect of 0.5 ATR is recovered with p < 0.01.
 
