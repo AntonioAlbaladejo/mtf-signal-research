@@ -73,6 +73,24 @@ variant):
   with C ≥ the high two bars earlier, up to 13. The high of bar 13 must be ≥ the close of countdown
   bar 8. Cancellation rules follow the reference.
 
+**Reading of the reference,** fixed before the test. It is written for the buy side, and the sell
+side mirrors it. The true high and true low of a bar extend its high and low to the previous close.
+
+- A setup's count continues past 9 while the sequence holds, and only a new price flip starts
+  another setup, so each setup gives one setup-9 event. Perfection counts bars 8 and 9 only: the
+  later perfection that the reference allows is not an event.
+- The countdown starts on setup bar 9, inclusive. A bar that qualifies as 13 but fails the bar-8
+  condition is deferred, and the 13 falls on the first later bar that meets both conditions.
+- A developing buy countdown is erased when a sell setup reaches 9, or when a bar's true low is
+  above the highest true high of the setup that started it (TDST). The four bars before the setup,
+  whose inclusion the reference describes as under study, are left out.
+- A new buy setup that completes during the countdown restarts it from its bar 9 if its true range
+  is at least that of the active setup, measured over all of that setup's bars, and less than
+  1.618 times it. Otherwise no rule applies and the count continues. The reference states this
+  for a smaller setup nested in the active one, and its upper bound keeps larger setups from
+  restarting the count.
+- A buy setup that reaches 18 bars during the countdown restarts the countdown on that bar.
+
 **Hypothesis:** after a sell (buy) setup 9, the normalised forward return is lower (higher) than
 under the matched null. The same applies to countdown 13.
 
