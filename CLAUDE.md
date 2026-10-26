@@ -31,6 +31,7 @@ uv run python -m src.costs                            # Binance -> Hyperliquid s
 uv run python -m src.events candidates 1h             # event-study candidates per timeframe
 uv run python -m src.events random 1h                 # validation: random events show no effect
 uv run python -m src.backtest random                  # validation: random entries lose ~costs
+uv run python -m src.signals H1                       # H1 test, logged (clean tree only)
 ```
 
 Heavy jobs run in the background, capped so that a job that grows too large dies alone instead of
@@ -60,6 +61,7 @@ day, and use `collect(engine="streaming")` for full-archive aggregations.
 | `src/costs.py` | Hyperliquid fees, fill-minute slippage and funding, with documented fallbacks |
 | `src/backtest.py` | 1-minute trade simulator and equal-risk daily returns |
 | `src/events.py` | Event studies: forward returns, matched baseline, block bootstrap |
+| `src/signals.py` | Pre-registered signals as per-bar events, and the runs that test them |
 | `src/stats.py` | Calendar-block bootstrap, FDR, Sharpe/Sortino/Calmar, PSR and DSR |
 | `src/registry.py` | Append-only `research/trials.jsonl`; hold-out access, once per family |
 | `tests/` | pytest; `tests/causality.py` holds the future-invariance check every feature needs |
