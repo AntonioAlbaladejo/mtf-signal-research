@@ -111,7 +111,9 @@ The future-invariance test is applied anyway.
 **Status:** pre-registered.
 
 **Swings:** causal ATR ZigZag. A pivot is confirmed once price reverses by k·ATR(14) from the
-extreme, and it stores its `confirmed_at`. Two registered variants: k = 2 and k = 3.
+extreme, and it stores its `confirmed_at`. Two registered variants: k = 2 and k = 3. The ZigZag
+uses bar highs and lows and the ATR of the extreme's bar. A bar that sets a new extreme cannot also
+confirm it, because the order of its high and low is unknown.
 
 ### H2a: Structural. Where do retracements stop?
 
@@ -126,19 +128,49 @@ This part is descriptive, so it may use completed retracements.
   2. **synthetic series** (a block bootstrap of returns, which keeps volatility but destroys any
      memory of levels) run **through the same ZigZag**. The pivot algorithm shapes the distribution
      of r by itself, so the null must go through it too.
+- **Statistic:** for each level L, the share of retracements in [L − 0.02, L + 0.02] minus the
+  mean share of the two adjacent windows of the same width, [L − 0.06, L − 0.02) and
+  (L + 0.02, L + 0.06]. A retracement is dated at the confirmation of C, and counts only if its
+  symbol is in the universe that month.
+- **Tests:** null 1 is a calendar-month block bootstrap of that excess, one-sided. For null 2, each
+  symbol's bars are rebuilt from blocks of 24 consecutive bars drawn with replacement, keeping each
+  bar's open, high, low and close relative to the previous close. Twenty such series go through
+  the same ZigZag, and their mean excess is subtracted before the same bootstrap. A cell must
+  reject both nulls, so its p-value is the larger of the two.
+- **Criterion:** confirmed in a cell if it survives FDR and is stable (PROTOCOL §7).
 
 ### H2b: Tradable. Does touching a level anticipate continuation?
 
-This part is causal: it uses confirmed pivots only.
+This part is causal: an impulse starts at a confirmed pivot and ends at the extreme reached so far.
 
-- **Event:** while the R0 trend agrees with the impulse, price touches level r of the last confirmed
+- **Event:** while the R0 trend agrees with the impulse, price touches level r of the current
   impulse.
+- **Impulse** (amended before any test, 27 October 2026): the up impulse runs from the last
+  confirmed low A to the highest high since, up to the previous bar; B does not need to be
+  confirmed. The down impulse mirrors it. The R0 trend decides which one can produce events. The
+  original wording took the last confirmed impulse, with B confirmed. Measured on impulse lengths
+  alone, before any test, B's confirmation (a reversal of k·ATR) has already crossed level 0.382
+  in 79 % of impulses, 0.5 in 60 % and 0.618 in 42 %, at both k and both timeframes. The touches
+  left would come from long impulses only, in a different mix for each level.
+- **Touch:** the first bar whose low reaches the level (whose high, for a down impulse), unless it
+  also sets a new extreme. Each level counts once per impulse, and a new extreme or a newly
+  confirmed pivot starts a new impulse. The event is dated at that bar's close, and its direction is
+  the impulse's.
 - **Hypothesis:** the forward return in the impulse direction is higher after touching a Fibonacci
   level than after touching the control levels {0.45, 0.55, 0.70}.
+- **Statistic:** the mean event-minus-baseline return (ENGINE.md §5) of the Fibonacci touches minus
+  that of the control touches, both pooled and bootstrapped jointly by calendar month, one-sided,
+  at the common horizons. The control levels are deeper on average (0.567 against 0.5). The pairs
+  0.382/0.45, 0.5/0.55 and 0.618/0.70 are reported as a description.
 - **Criterion:** Fibonacci must beat the neighbouring levels, not just random times. A pullback
-  bouncing within a trend says nothing specific about Fibonacci.
+  bouncing within a trend says nothing specific about Fibonacci. Confirmed in a cell if the
+  difference survives FDR, the Fibonacci touches clear the economic threshold, and the difference
+  is stable.
 
 **Timeframes:** 1h and 4h.
+
+**Families:** FDR is controlled separately for H2a and for H2b (Benjamini-Hochberg, q = 0.05).
+H2a: 3 levels × k ∈ {2, 3} × 2 timeframes = 12 cells. H2b: k × timeframe × 3 horizons = 12 cells.
 
 ---
 
