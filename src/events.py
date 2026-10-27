@@ -75,33 +75,64 @@ def study(
     Events outside the universe, on untradable bars or before R0 exists find no candidate and
     drop out; `matched` reports how many remain.
     """
-    e = events.join(cands, on=["symbol", "time"])
-    year = pl.col("month").dt.year()
-    by_year = cands.group_by(year).agg(months=pl.col("month").n_unique())
-    complete = by_year.filter(pl.col("months") == 12)["month"]  # stability counts these only
+    matched = events.join(cands, on=["symbol", "time"]).height
+    years = complete_years(cands)
     rows = []
     for h in HORIZONS[tf]:
-        r = f"r{h}"
-        base = cands.drop_nulls(r).group_by("symbol", "cell").agg(base=pl.col(r).mean())
-        d = e.drop_nulls(r).join(base, on=["symbol", "cell"])
-        d = d.select("symbol", "month", diff=pl.col("direction") * (pl.col(r) - pl.col("base")))
-        row = {"horizon": h, "events": events.height, "matched": e.height, "n": d.height}
+        d = diffs(events, cands, h)
+        row = {"horizon": h, "events": events.height, "matched": matched, "n": d.height}
         if d.height:
             row |= bootstrap_test(d["diff"], d["month"], alternative, reps, seed)
-            full_years = d.filter(year.is_in(complete.implode()))
-            for name, g, by in (("years", full_years, year), ("assets", d, pl.col("symbol"))):
-                means = g.group_by(by).agg(pl.col("diff").mean())["diff"].to_numpy()
-                same = np.sign(means) == np.sign(row["effect"])
-                row[f"{name}_same_sign"] = float(same.mean()) if len(same) else None
-            major = {"btc": "BTCUSDT", "eth": "ETHUSDT"}  # descriptive breakdown, no p-value
-            groups = {k: d.filter(pl.col("symbol") == s) for k, s in major.items()}
-            groups["other"] = d.filter(~pl.col("symbol").is_in(list(major.values())))
-            for name, g in groups.items():
-                if g.height:
-                    t = bootstrap_test(g["diff"], g["month"], alternative, reps, seed)
-                    row |= {f"{name}_{k}": t[k] for k in ("n", "effect", "ci_low", "ci_high")}
+            row |= same_sign(d, row["effect"], years)
+            row |= breakdown(
+                d, lambda g: bootstrap_test(g["diff"], g["month"], alternative, reps, seed)
+            )
         rows.append(row)
     return pl.DataFrame(rows)
+
+
+def diffs(events: pl.DataFrame, cands: pl.DataFrame, h: int) -> pl.DataFrame:
+    """Matched events with `diff`: the forward return over h bars minus its stratum's mean, signed
+    by the event's direction."""
+    r = f"r{h}"
+    base = cands.drop_nulls(r).group_by("symbol", "cell").agg(base=pl.col(r).mean())
+    e = events.join(cands, on=["symbol", "time"]).drop_nulls(r).join(base, on=["symbol", "cell"])
+    return e.with_columns(diff=pl.col("direction") * (pl.col(r) - pl.col("base")))
+
+
+def complete_years(cands: pl.DataFrame) -> pl.Series:
+    """Calendar years with all twelve months of candidates: stability counts these only."""
+    by_year = cands.group_by(year=pl.col("month").dt.year()).agg(months=pl.col("month").n_unique())
+    return by_year.filter(pl.col("months") == 12)["year"]
+
+
+def same_sign(
+    d: pl.DataFrame, effect: float, years: pl.Series, stat: pl.Expr | None = None
+) -> dict:
+    """Share of complete years and of assets whose `stat` has the sign of `effect` (PROTOCOL §7)."""
+    year, stat = pl.col("month").dt.year(), pl.col("diff").mean() if stat is None else stat
+    out = {}
+    for name, g, by in (
+        ("years", d.filter(year.is_in(years.implode())), year),
+        ("assets", d, pl.col("symbol")),
+    ):
+        means = g.group_by(by).agg(s=stat)["s"].drop_nulls().to_numpy()
+        same = np.sign(means) == np.sign(effect)
+        out[f"{name}_same_sign"] = float(same.mean()) if len(same) else None
+    return out
+
+
+def breakdown(d: pl.DataFrame, test) -> dict:
+    """BTC, ETH and the remaining assets: effect and interval of `test`, with no p-value."""
+    major = {"btc": "BTCUSDT", "eth": "ETHUSDT"}
+    groups = {k: d.filter(pl.col("symbol") == s) for k, s in major.items()}
+    groups["other"] = d.filter(~pl.col("symbol").is_in(list(major.values())))
+    out = {}
+    for name, g in groups.items():
+        if g.height:
+            t = test(g)
+            out |= {f"{name}_{k}": t[k] for k in ("n", "effect", "ci_low", "ci_high")}
+    return out
 
 
 def main() -> None:
