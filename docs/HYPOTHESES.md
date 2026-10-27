@@ -108,7 +108,8 @@ The future-invariance test is applied anyway.
 
 ## H2: Fibonacci retracement levels are special
 
-**Status:** pre-registered.
+**Status:** rejected in all cells of H2a and H2b, before the hold-out (27 October 2026;
+[RESULTS.md](RESULTS.md)).
 
 **Swings:** causal ATR ZigZag. A pivot is confirmed once price reverses by k·ATR(14) from the
 extreme, and it stores its `confirmed_at`. Two registered variants: k = 2 and k = 3. The ZigZag

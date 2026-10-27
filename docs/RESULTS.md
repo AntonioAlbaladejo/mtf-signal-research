@@ -60,3 +60,72 @@ as stated here.
   be new, informed by these data, and would need data not used here.
 - **The hold-out is short for effects of this size.** Six months hold about 23 daily buy setups
   and 140 hourly buy countdowns, so an effect of 0.3 ATR could not be confirmed there on its own.
+
+---
+
+## H2: Fibonacci retracements
+
+**Run:** 27 October 2026, commit `73bf3d6`, clean tree. Data from July 2020 to the hold-out. H2a
+counts the retracements of the 105 universe symbols while they are in the universe; H2b uses the
+event-study candidates (69 symbols). The hold-out was not opened.
+
+### H2a: where retracements stop
+
+**Verdict: rejected in all 12 cells.** Retracements are no denser within 0.02 of 0.382, 0.5 and
+0.618 than in the windows beside them. Excesses are in percentage points of all retracements; the
+net excess subtracts the mean excess of 20 synthetic series run through the same ZigZag, and p is
+the larger of the two nulls' p-values. Every interval contains zero and the smallest p-value is
+0.17. The ZigZag itself adds almost nothing at these levels: at most +0.08 points.
+
+| Timeframe | k | Level | Retracements | Share in window | Excess | Synthetic | Net excess [95 % interval] · p | Years | Assets |
+|---|---|---|---|---|---|---|---|---|---|
+| 1h | 2 | 0.382 | 53,656 | 2.2 % | +0.09 | +0.06 | +0.03 [-0.13, +0.20] · 0.333 | 3/5 | 0.49 |
+| 1h | 2 | 0.5 | 53,656 | 2.9 % | +0.01 | +0.01 | -0.01 [-0.18, +0.16] · 0.537 | 2/5 | 0.52 |
+| 1h | 2 | 0.618 | 53,656 | 3.3 % | +0.06 | +0.03 | +0.03 [-0.15, +0.22] · 0.369 | 3/5 | 0.53 |
+| 1h | 3 | 0.382 | 23,155 | 2.1 % | +0.03 | +0.03 | +0.00 [-0.24, +0.24] · 0.497 | 2/5 | 0.41 |
+| 1h | 3 | 0.5 | 23,155 | 2.9 % | -0.04 | +0.07 | -0.10 [-0.39, +0.20] · 0.754 | 3/5 | 0.58 |
+| 1h | 3 | 0.618 | 23,155 | 3.2 % | -0.22 | -0.01 | -0.21 [-0.47, +0.06] · 0.945 | 3/5 | 0.52 |
+| 4h | 2 | 0.382 | 13,161 | 2.2 % | -0.02 | -0.00 | -0.02 [-0.27, +0.23] · 0.545 | 3/5 | 0.43 |
+| 4h | 2 | 0.5 | 13,161 | 2.9 % | -0.08 | +0.06 | -0.14 [-0.50, +0.24] · 0.771 | 3/5 | 0.61 |
+| 4h | 2 | 0.618 | 13,161 | 3.6 % | +0.20 | +0.00 | +0.19 [-0.21, +0.58] · 0.168 | 4/5 | 0.44 |
+| 4h | 3 | 0.382 | 5,735 | 2.4 % | +0.22 | +0.06 | +0.16 [-0.30, +0.64] · 0.272 | 4/5 | 0.37 |
+| 4h | 3 | 0.5 | 5,735 | 3.5 % | +0.26 | +0.08 | +0.18 [-0.29, +0.65] · 0.236 | 4/5 | 0.33 |
+| 4h | 3 | 0.618 | 5,735 | 3.2 % | -0.24 | +0.01 | -0.25 [-0.80, +0.28] · 0.801 | 3/5 | 0.71 |
+
+### H2b: does a touch anticipate continuation?
+
+**Verdict: rejected in all 12 cells.** Two cells survive the FDR control, both at 1h and 12 bars:
+Fibonacci touches beat control touches by 0.015 ATR with k = 2 (p = 0.0005) and by 0.023 ATR with
+k = 3 (p = 0.0035). Both fail the rest of the criterion. The Fibonacci touches return 2.9 and
+3.5 bps gross in the trade's direction, far below the economic threshold, and the gap has the
+same sign in only 54 % and 62 % of assets.
+
+| Timeframe | k | Horizon | Touches, Fibonacci / control | Difference [95 % interval] · p | Fibonacci vs baseline | Control vs baseline | Fibonacci gross, bps | Years | Assets |
+|---|---|---|---|---|---|---|---|---|---|
+| 1h | 2 | 4 | 65,267 / 57,661 | +0.005 [-0.003, +0.013] · 0.0940 | -0.004 | -0.009 | +3.2 | 3/5 | 0.55 |
+| 1h | 2 | 12 | 65,243 / 57,637 | +0.015 [+0.005, +0.025] · 0.0005 **FDR** | -0.029 | -0.044 | +2.9 | 4/5 | 0.54 |
+| 1h | 2 | 24 | 65,220 / 57,616 | +0.004 [-0.011, +0.018] · 0.2989 | -0.049 | -0.052 | +4.0 | 2/5 | 0.48 |
+| 1h | 3 | 4 | 29,800 / 25,851 | +0.013 [+0.002, +0.025] · 0.0155 | +0.017 | +0.003 | +8.2 | 4/5 | 0.54 |
+| 1h | 3 | 12 | 29,779 / 25,831 | +0.023 [+0.005, +0.040] · 0.0035 **FDR** | -0.031 | -0.054 | +3.5 | 5/5 | 0.62 |
+| 1h | 3 | 24 | 29,763 / 25,816 | -0.000 [-0.029, +0.029] · 0.5142 | -0.091 | -0.091 | +1.2 | 3/5 | 0.46 |
+| 4h | 2 | 3 | 15,712 / 13,538 | +0.004 [-0.009, +0.017] · 0.2664 | -0.020 | -0.024 | -3.1 | 3/5 | 0.50 |
+| 4h | 2 | 6 | 15,697 / 13,525 | -0.003 [-0.025, +0.017] · 0.6062 | -0.023 | -0.020 | +4.4 | 3/5 | 0.51 |
+| 4h | 2 | 12 | 15,682 / 13,512 | +0.002 [-0.022, +0.025] · 0.4278 | -0.044 | -0.046 | +4.6 | 2/5 | 0.53 |
+| 4h | 3 | 3 | 6,964 / 5,722 | +0.003 [-0.020, +0.026] · 0.4088 | -0.018 | -0.020 | -4.5 | 2/5 | 0.47 |
+| 4h | 3 | 6 | 6,964 / 5,722 | -0.007 [-0.040, +0.028] · 0.6747 | -0.010 | -0.003 | +4.6 | 4/5 | 0.49 |
+| 4h | 3 | 12 | 6,950 / 5,711 | +0.015 [-0.026, +0.059] · 0.2334 | -0.028 | -0.043 | +2.2 | 2/5 | 0.51 |
+
+Effects are in ATR units. "Difference" is Fibonacci touches minus control touches, both measured
+against their matched baseline, which the next two columns give separately.
+
+**What stands out.** These are descriptive observations, not findings.
+
+- **Touching a level is a poor entry.** In 11 of 12 cells, both kinds of touch return less than
+  the matched baseline: buying a pullback in an up-trending regime, or selling a bounce in a
+  down-trending one, does worse than a random entry in the same regime. At 1h this reaches −0.05
+  to −0.09 ATR over 24 bars, and it matches the intraday continuation seen in H1.
+- **The gap may be depth, not Fibonacci.** The control levels are deeper on average (0.567
+  against 0.5), as noted when H2 was pre-registered. By pairs, at 1h and 12 bars, 0.382 beats 0.45
+  by 0.03 to 0.04 ATR and 0.618 beats 0.70 by 0.02, but 0.5 and 0.55 are even (−0.007 and +0.001).
+- **The gap is small.** 0.015 to 0.023 ATR is 2 to 3 bps at the median 1h ATR (1.3 %), against
+  round-trip costs of about 12 bps.
