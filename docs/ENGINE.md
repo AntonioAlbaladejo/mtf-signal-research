@@ -140,18 +140,25 @@ A planted effect of 0.5 standard deviations is detected in at least 45 of 50 see
 value inside the 95 % interval in at least 42. The second row is why PROTOCOL §5 and §7 were
 amended before any test.
 
+**Reproducibility.** A seed fixes every bootstrap result, whatever the order of the events: the
+blocks are sorted before they are drawn. Until commit `068d0f6` they were drawn in the order of a
+group-by that is not deterministic, so a run logged before it differs from a re-run by Monte Carlo
+noise.
+
 ## 7. Trial registry and the hold-out
 
 `research/trials.jsonl` is append-only and committed. Every run is stamped with its configuration
-hash, the commit it ran on and whether the tree had uncommitted changes, so a logged result can
-always be traced to code in the history. `scan(..., unseal_for="H1")` logs the access and refuses a
-second one for the same family.
+hash, the commit it ran on and whether the tree had uncommitted changes, the registry itself
+excepted, so a logged result can always be traced to code in the history.
+`scan(..., unseal_for="H1")` logs the access and refuses a second one for the same family.
 
 ## 8. Validation on real data
 
-Both validations are logged in `research/trials.jsonl`, run on commit `da6b31f` with a clean tree.
-A first attempt on `7b9abf1` stopped with an error before logging anything: a minute holding two
-Hyperliquid snapshots duplicated a fill. `da6b31f` fixes it.
+Both validations are logged in `research/trials.jsonl`. They ran on commit `da6b31f` with a clean
+tree, and again on `254ce82`, once the bootstrap was reproducible from its seed (§6); the figures
+below come from the second run. Effects, costs and exits are identical in both; intervals and
+p-values differ by Monte Carlo noise. A first attempt on `7b9abf1` stopped with an error before
+logging anything: a minute holding two Hyperliquid snapshots duplicated a fill. `da6b31f` fixes it.
 
 **Random entries** (`backtest random`, 20,000 draws, seed 0): random universe members at random
 1h closes, in a random direction, with stop and target at 2 ATR(1h) and a 24-hour limit. 19,990
@@ -159,7 +166,7 @@ trades completed; the rest ran past the data.
 
 | Per trade | Mean |
 |---|---|
-| Gross | −0.04 bps (95 % interval −6.0 to +5.3, p = 0.99) |
+| Gross | −0.04 bps (95 % interval −5.7 to +5.9, p = 0.99) |
 | Costs | 12.5 bps: 9.0 of taker fees, 3.5 of slippage and funding |
 | Net | −12.6 bps |
 
@@ -169,7 +176,7 @@ symmetric brackets should. Net is negative in every year; costs peak in 2023 at 
 Hyperliquid's books were thinnest.
 
 **Random events** (`events random`, 5,000 random candidates per timeframe in a random direction,
-seed 0): no effect at any of the nine horizons. The p-values range from 0.24 to 0.98, every
+seed 0): no effect at any of the nine horizons. The p-values range from 0.22 to 0.98, every
 interval contains zero, and the shares of years and assets that share the effect's sign hover
 around one half, as noise should. The BTC and ETH breakdowns contain zero too, with intervals
 about three times wider than the pooled one, as their share of the events predicts.
