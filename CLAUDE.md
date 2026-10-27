@@ -32,6 +32,7 @@ uv run python -m src.events candidates 1h             # event-study candidates p
 uv run python -m src.events random 1h                 # validation: random events show no effect
 uv run python -m src.backtest random                  # validation: random entries lose ~costs
 uv run python -m src.signals H1                       # H1 test, logged (clean tree only)
+uv run python -m src.signals H2                       # H2a and H2b tests, logged
 ```
 
 Heavy jobs run in the background, capped so that a job that grows too large dies alone instead of
