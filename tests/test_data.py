@@ -1,3 +1,4 @@
+import subprocess
 from datetime import timedelta
 
 import polars as pl
@@ -28,3 +29,21 @@ def test_registry_appends_and_stamps_the_config(tmp_path, monkeypatch):
     b = registry.log("trial", "H1.a", {"k": 2, "tf": "1h"}, {"p": 0.3})
     assert a["config_hash"] == b["config_hash"]  # key order does not matter
     assert [r["results"]["p"] for r in registry.records()] == [0.2, 0.3]
+
+
+def test_only_code_changes_make_a_run_dirty(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    for f in (registry.TRIALS, tmp_path / "code.py"):
+        f.parent.mkdir(exist_ok=True)
+        f.write_text("")
+    for args in (
+        ["init", "-q"],
+        ["add", "."],
+        ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "c"],
+    ):
+        subprocess.run(["git", *args], check=True)
+    first = registry.log("trial", "H9", {})
+    second = registry.log("trial", "H9", {})  # the registry is now modified, the code is not
+    (tmp_path / "code.py").write_text("x = 1\n")
+    third = registry.log("trial", "H9", {})
+    assert [r["dirty"] for r in (first, second, third)] == [False, False, True]

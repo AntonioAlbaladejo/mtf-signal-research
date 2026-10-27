@@ -27,7 +27,10 @@ def log(kind: str, hypothesis: str, config: dict, results: dict | None = None) -
         "config_hash": hashlib.sha256(json.dumps(config, sort_keys=True).encode()).hexdigest()[:12],
         "config": config,
         "code": _git("rev-parse", "--short", "HEAD"),
-        "dirty": bool(_git("status", "--porcelain", "--untracked-files=no")),
+        # the registry itself changes with every run, so it does not make the next one dirty
+        "dirty": bool(
+            _git("status", "--porcelain", "--untracked-files=no", "--", ".", f":!{TRIALS}")
+        ),
         "results": results or {},
     }
     TRIALS.parent.mkdir(parents=True, exist_ok=True)
