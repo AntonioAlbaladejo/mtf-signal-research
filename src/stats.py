@@ -16,6 +16,7 @@ def block_bootstrap(values, blocks, reps: int = 2000, seed: int = 0) -> np.ndarr
     time or across correlated assets are resampled together instead of as independent evidence.
     """
     g = pl.DataFrame({"v": values, "b": blocks}).group_by("b").agg(s=pl.col("v").sum(), n=pl.len())
+    g = g.sort("b")  # group order is not deterministic, and the seed draws positions in it
     s, n = g["s"].to_numpy(), g["n"].to_numpy()
     idx = np.random.default_rng(seed).integers(0, len(s), size=(reps, len(s)))
     return s[idx].sum(axis=1) / n[idx].sum(axis=1)

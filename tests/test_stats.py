@@ -39,6 +39,16 @@ def test_planted_effect_is_recovered():
     assert detected >= 45 and covered >= 42
 
 
+def test_a_seed_fixes_the_result_whatever_the_row_order():
+    values, blocks = clustered(0, effect=0.2)
+    order = np.random.default_rng(1).permutation(values.size)
+    first = [bootstrap_test(values, blocks, seed=3) for _ in range(3)]
+    shuffled = bootstrap_test(values[order], blocks[order], seed=3)
+    assert all(r == first[0] for r in first[1:])
+    assert shuffled["ci_low"] == pytest.approx(first[0]["ci_low"])
+    assert shuffled["p"] == first[0]["p"]
+
+
 def test_fdr_benjamini_hochberg():
     assert fdr([0.001, 0.008, 0.039, 0.041, 0.6], q=0.05) == [True, True, False, False, False]
     assert fdr([0.01, 0.02, 0.03, 0.04], q=0.05) == [True, True, True, True]
