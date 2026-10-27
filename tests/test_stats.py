@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from src.stats import bootstrap_test, dsr, fdr, max_drawdown, psr, sharpe
+from src.stats import bootstrap_difference, bootstrap_test, dsr, fdr, max_drawdown, psr, sharpe
 
 
 def clustered(seed: int, effect: float = 0.0, months: int = 70, per_month: int = 10):
@@ -47,6 +47,28 @@ def test_a_seed_fixes_the_result_whatever_the_row_order():
     assert all(r == first[0] for r in first[1:])
     assert shuffled["ci_low"] == pytest.approx(first[0]["ci_low"])
     assert shuffled["p"] == first[0]["p"]
+    a, a_blocks, b, b_blocks = two_groups(0, 0.1)
+    one, other = (bootstrap_difference(x, xb, b, b_blocks, seed=3)
+                  for x, xb in ((a, a_blocks), (a[order], a_blocks[order])))  # fmt: skip
+    assert one["p"] == other["p"] and one["ci_low"] == pytest.approx(other["ci_low"])
+
+
+def two_groups(seed: int, gap: float):
+    """Two event groups hit by the same monthly shocks, as touches of nearby levels are."""
+    rng = np.random.default_rng(seed)
+    shock = rng.normal(0, 1, 70)
+    blocks = np.repeat(np.arange(70), 10)
+    a = gap + shock[blocks] + rng.normal(0, 1, blocks.size)
+    return a, blocks, shock[blocks] + rng.normal(0, 1, blocks.size), blocks
+
+
+def test_difference_bootstrap_is_calibrated_and_recovers_a_planted_gap():
+    rejected = sum(bootstrap_difference(*two_groups(s, 0.0), reps=500, seed=s)["p"] < 0.05
+                   for s in range(100))  # fmt: skip
+    assert 1 <= rejected <= 10
+    found = [bootstrap_difference(*two_groups(s, 0.3), reps=500, seed=s) for s in range(50)]
+    assert sum(r["p"] < 0.05 for r in found) >= 45
+    assert sum(r["ci_low"] <= 0.3 <= r["ci_high"] for r in found) >= 42
 
 
 def test_fdr_benjamini_hochberg():

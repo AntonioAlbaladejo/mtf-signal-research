@@ -28,6 +28,44 @@ def bootstrap_test(
     """Mean effect, 95% percentile interval and a centred bootstrap p-value (H0: mean = 0)."""
     v = np.asarray(values, dtype=float)
     est, boot = float(v.mean()), block_bootstrap(v, blocks, reps, seed)
+    return _summary(est, boot, alternative) | {"n": len(v), "blocks": len(set(blocks))}
+
+
+def bootstrap_difference(
+    a, a_blocks, b, b_blocks, alternative: str = "greater", reps: int = 2000, seed: int = 0
+) -> dict:
+    """mean(a) − mean(b), resampling calendar blocks jointly for both groups (H2b)."""
+    va, vb = np.asarray(a, dtype=float), np.asarray(b, dtype=float)
+    g = (
+        pl.DataFrame(
+            {
+                "v": np.r_[va, vb],
+                "a": np.r_[np.ones(va.size, bool), np.zeros(vb.size, bool)],
+                "blk": list(a_blocks) + list(b_blocks),
+            }
+        )
+        .group_by("blk")
+        .agg(
+            sa=pl.col("v").filter("a").sum(),
+            na=pl.col("a").sum(),
+            sb=pl.col("v").filter(~pl.col("a")).sum(),
+            nb=(~pl.col("a")).sum(),
+        )
+        .sort("blk")
+    )
+    idx = np.random.default_rng(seed).integers(0, g.height, size=(reps, g.height))
+    sa, na, sb, nb = (
+        g[c].to_numpy().astype(float)[idx].sum(axis=1) for c in ("sa", "na", "sb", "nb")
+    )
+    with np.errstate(divide="ignore", invalid="ignore"):
+        boot = sa / na - sb / nb
+    est = float(va.mean() - vb.mean())
+    sizes = {"n": va.size + vb.size, "n_a": va.size, "n_b": vb.size, "blocks": g.height}
+    return _summary(est, boot[np.isfinite(boot)], alternative) | sizes
+
+
+def _summary(est: float, boot: np.ndarray, alternative: str) -> dict:
+    """Estimate, 95% percentile interval and a centred bootstrap p-value (H0: effect = 0)."""
     centred = boot - est
     hits = {
         "greater": centred >= est,
@@ -39,9 +77,7 @@ def bootstrap_test(
         "effect": est,
         "ci_low": float(low),
         "ci_high": float(high),
-        "p": float((hits + 1) / (reps + 1)),
-        "n": len(v),
-        "blocks": len(set(blocks)),
+        "p": float((hits + 1) / (len(boot) + 1)),
     }
 
 
