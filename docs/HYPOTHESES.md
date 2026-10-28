@@ -210,6 +210,26 @@ stratified by R0.
   mean-reversion reading would penalise exactly the longs that follow the trend. That is why results
   are stratified by R0.
 
+**Specification,** fixed before the test (28 October 2026):
+
+- **Events:** H1 setup 9 and countdown 13 at 1h, 4h and 1d, and the H2b Fibonacci touches with
+  k = 2 at 1h and 4h, one event per bar. The perfected setup, a subset of setup 9, is left out.
+  Buys and sells are pooled, since s already carries the direction.
+- **Response:** the event-minus-baseline forward return (ENGINE.md §5) at the common horizons.
+- **Slope:** least squares of the response on s, both demeaned within each R0 cell, so that only
+  events in the same regime are compared. Its interval and two-sided p-value come from the
+  calendar-month block bootstrap. It is reported per 10 RSI points.
+- **H3.1:** the RSI of the next timeframe up, as of the event's close: 4h for 1h events and 1d for
+  4h events. Daily events have no H3.1.
+- **Inconclusive:** a cell where s has a standard deviation below 5 RSI points across its events.
+  Measured before the test on the RSI at the events alone, it is about 8 in H1 and 9 in H2b. No H1
+  event has s below −20, so the opposing zone of the table stays empty for H1.
+- **Criterion:** a slope is confirmed in a cell if it survives FDR and is stable (PROTOCOL §7); its
+  sign gives the reading. H3.0 and H3.1 measure information, not a trade: the economic threshold
+  applies to H3.2.
+- **Families:** FDR is controlled separately for H3.0, with 24 cells (2 H1 signals × 3 timeframes
+  × 3 horizons, and H2b × 2 timeframes × 3 horizons), and for H3.1, with 18.
+
 **Phase 4:** the most faithful form of a non-decisive confirmation is RSI as a feature of the
 meta-model, where its weight is learned and the calibrated probability decides. H3.0 tells whether
 it is worth including.
