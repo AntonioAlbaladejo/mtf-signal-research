@@ -65,7 +65,7 @@ is pre-registered today.
 
 | Family | Question | Status |
 |---|---|---|
-| **A. Classical TA** | Do TD Sequential, Fibonacci retracements and RSI confirmation carry information beyond a matched null? | Pre-registered (H1-H3) |
+| **A. Classical TA** | Do TD Sequential, Fibonacci retracements and RSI confirmation carry information beyond a matched null? | H1-H3 rejected before the hold-out ([RESULTS.md](RESULTS.md)) |
 | **B. Trend and momentum** | Does time-series momentum hold at intraday and swing horizons, net of costs? Can trend filters be designed by their frequency response rather than tuned by trial and error? Moving averages are FIR/IIR filters with a known lag-versus-noise trade-off; Kalman filters estimate the trend directly. | Planned |
 | **C. Multi-timeframe confluence** | Does a higher-timeframe regime filter improve lower-timeframe setups? Does agreement across timeframes add information beyond what each timeframe carries alone? | Planned: the core of the project |
 | **D. Derivatives positioning** | Do funding rates, basis and open-interest dynamics (crowding) predict returns or reversals? | Planned |

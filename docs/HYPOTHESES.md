@@ -177,7 +177,8 @@ H2a: 3 levels × k ∈ {2, 3} × 2 timeframes = 12 cells. H2b: k × timeframe ×
 
 ## H3: RSI adds information as a confirmation
 
-**Status:** pre-registered.
+**Status:** rejected in all cells of H3.0 and H3.1, before the hold-out (29 October 2026;
+[RESULTS.md](RESULTS.md)). H3.2 was not evaluated, since no slope was confirmed.
 
 **Rationale:** RSI is usually used to confirm other signals rather than as a stand-alone rule. The
 primary variant therefore does not test a hard filter. It measures how much information RSI adds to
