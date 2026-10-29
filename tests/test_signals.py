@@ -11,7 +11,9 @@ from src.signals import (
     excess,
     h2a_rows,
     h2b_rows,
+    h3_rows,
     retracements,
+    signed,
     swings,
     synthetic,
     td_sequential,
@@ -198,3 +200,30 @@ def test_the_h2_cells_run_end_to_end_on_a_random_walk():
         "1h", 2, touch_events(hourly, 2), cands, years
     ):
         assert 0 < row["p"] <= 1 and row["n"] > 0
+
+
+def test_signed_rsi_is_positive_when_mean_reversion_supports_the_trade():
+    events = pl.DataFrame({"direction": [1, -1, 1], "rsi": [30.0, 80.0, None]})
+    assert signed(events)["s"].to_list() == [20.0, 30.0]  # warming-up RSI is dropped
+
+
+def test_h3_recovers_a_planted_slope_within_regime_cells():
+    # Each event's forward return rises 0.02 ATR per point of s, on top of a cell-level offset in
+    # s that the within-cell demeaning must remove.
+    rng = np.random.default_rng(0)
+    n = 20_000
+    cell = np.where(np.arange(n) % 2 == 0, "1/0", "-1/0")
+    s = rng.uniform(-30, 30, n) + np.where(cell == "1/0", 15.0, -15.0)
+    time = [T0 + timedelta(hours=i) for i in range(n)]
+    cands = (
+        pl.DataFrame({"symbol": "BTCUSDT", "time": time, "cell": cell})
+        .with_columns(
+            month=pl.col("time").dt.truncate("1mo"),
+            r4=pl.Series(0.02 * s + rng.normal(0, 1, n)),
+        )
+        .with_columns(r12=pl.col("r4"), r24=pl.col("r4"))
+    )
+    events = cands.select("symbol", "time", direction=pl.lit(1), s=pl.Series(s))
+    rows = h3_rows("1h", "planted", events, cands, pl.Series([2022]))
+    assert rows[0]["effect"] == pytest.approx(0.02, abs=0.003) and rows[0]["p"] < 0.01
+    assert rows[0]["supportive_n"] + rows[0]["neutral_n"] + rows[0]["opposing_n"] == n

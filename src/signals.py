@@ -5,6 +5,7 @@ so that `tests/causality.py` can check them like any other feature.
 
     uv run python -m src.signals H1    # tests and logs H1 (run on a clean, committed tree)
     uv run python -m src.signals H2    # tests and logs H2a and H2b
+    uv run python -m src.signals H3    # tests and logs H3.0 and H3.1
 """
 
 import argparse
@@ -13,16 +14,18 @@ import numpy as np
 import polars as pl
 
 from src import registry
+from src.bars import asof
 from src.data import scan
 from src.events import HORIZONS, OUT, breakdown, complete_years, diffs, same_sign, study
-from src.indicators import atr
-from src.stats import bootstrap_difference, bootstrap_test, fdr
+from src.indicators import atr, rsi
+from src.stats import bootstrap_difference, bootstrap_slope, bootstrap_test, fdr
 from src.universe import UNIVERSE
 
 TD = ["setup", "perfected", "countdown"]
 RECYCLE = 1.618
 FIB, CONTROL = [0.382, 0.5, 0.618], [0.45, 0.55, 0.70]
 SYNTHETIC, BLOCK = 20, 24  # H2a null 2: replicates, and bars per resampled block
+UP = {"1h": "4h", "4h": "1d"}  # H3.1: the RSI of the next timeframe up
 
 
 def setup_counts(close: np.ndarray) -> np.ndarray:
@@ -320,11 +323,16 @@ def contrast(d: pl.DataFrame) -> dict:
     return bootstrap_difference(f["diff"], f["month"], c["diff"], c["month"])
 
 
-def h2b_rows(tf: str, k: int, events: pl.DataFrame, cands: pl.DataFrame, years) -> list[dict]:
-    """Per horizon: the Fibonacci-minus-control contrast, plus descriptions of both sides."""
+def in_trend(events: pl.DataFrame, cands: pl.DataFrame) -> pl.DataFrame:
+    """The events whose R0 trend agrees with their direction (H2b)."""
     trend = pl.col("cell").str.split("/").list.first().cast(pl.Int64)
     events = events.join(cands.select("symbol", "time", "cell"), on=["symbol", "time"])
-    events = events.filter(trend == pl.col("direction")).drop("cell")
+    return events.filter(trend == pl.col("direction")).drop("cell")
+
+
+def h2b_rows(tf: str, k: int, events: pl.DataFrame, cands: pl.DataFrame, years) -> list[dict]:
+    """Per horizon: the Fibonacci-minus-control contrast, plus descriptions of both sides."""
+    events = in_trend(events, cands)
     diff, level = pl.col("diff"), pl.col("level")
     rows = []
     for h in HORIZONS[tf]:
@@ -379,10 +387,84 @@ def h2() -> None:
             print(name, pl.DataFrame(rs))
 
 
+def signed(events: pl.DataFrame) -> pl.DataFrame:
+    """s = 50 − RSI for longs and RSI − 50 for shorts: positive when the mean-reversion reading of
+    RSI supports the trade (H3). Events whose RSI is still warming up are dropped."""
+    s = pl.when(pl.col("direction") == 1).then(50 - pl.col("rsi")).otherwise(pl.col("rsi") - 50)
+    return events.with_columns(s=s).drop_nulls("s")
+
+
+def h3_rows(tf: str, signal: str, events: pl.DataFrame, cands: pl.DataFrame, years) -> list[dict]:
+    """Per horizon: the slope of the event-minus-baseline return on s within R0 cells, its
+    stability and breakdown, and the zone table."""
+    zones = {"supportive": pl.col("s") > 20, "opposing": pl.col("s") < -20}
+    zones["neutral"] = ~(zones["supportive"] | zones["opposing"])
+    within = {c: pl.col(v) - pl.col(v).mean().over("cell") for c, v in (("x", "s"), ("y", "diff"))}
+    slope = (pl.col("x") * pl.col("y")).sum() / (pl.col("x") ** 2).sum()
+
+    def fit(g: pl.DataFrame) -> dict:
+        return bootstrap_slope(g["x"], g["y"], g["month"])
+
+    rows = []
+    for h in HORIZONS[tf]:
+        d = diffs(events, cands, h).with_columns(**within)
+        row = {"tf": tf, "signal": signal, "horizon": h} | fit(d)
+        row["sd_s"] = d["s"].std()
+        row["inconclusive"] = row["sd_s"] < 5
+        row |= same_sign(d, row["effect"], years, slope) | breakdown(d, fit)
+        for name, z in zones.items():
+            row |= d.select(
+                pl.col("diff").filter(z).len().alias(f"{name}_n"),
+                pl.col("diff").filter(z).mean().alias(f"{name}_effect"),
+            ).row(0, named=True)
+        rows.append(row)
+    return rows
+
+
+def with_rsi(tf: str, symbols: list[str], columns: tuple[str, ...]) -> pl.DataFrame:
+    """A timeframe's bars, sorted per symbol, with Wilder's RSI(14)."""
+    bars = scan(f"bars/{tf}", symbols).select("symbol", "time", *columns).collect()
+    return bars.sort("symbol", "time").with_columns(rsi=rsi(14).over("symbol"))
+
+
+def h3() -> None:
+    """H3.0: slope on the RSI of the event's own timeframe, 24 cells. H3.1: on the RSI of the next
+    timeframe up, 18 cells. One FDR family each."""
+    rows = {"H3.0": [], "H3.1": []}
+    for tf in HORIZONS:
+        cands = pl.read_parquet(OUT / f"candidates_{tf}.parquet")
+        years = complete_years(cands)
+        symbols = cands["symbol"].unique().sort().to_list()
+        bars = with_rsi(tf, symbols, ("open", "high", "low", "close"))
+        td = td_sequential(bars)
+        direction = {s: pl.col(s).cast(pl.Int64) for s in ("setup", "countdown")}
+        events = {
+            s: td.filter(d != 0).select("symbol", "time", direction=d) for s, d in direction.items()
+        }
+        if tf in UP:
+            touched = touch_events(bars, 2).filter(IS_FIB).select("symbol", "time", "direction")
+            events["fibonacci"] = in_trend(touched.unique(), cands)
+            above = with_rsi(UP[tf], symbols, ("close",)).select("symbol", "time", "rsi")
+        for name, e in events.items():
+            here = e.join(bars.select("symbol", "time", "rsi"), on=["symbol", "time"])
+            rows["H3.0"] += h3_rows(tf, name, signed(here), cands, years)
+            if tf in UP:
+                up = asof(e, above, ["rsi"], "up").rename({"rsi_up": "rsi"})
+                rows["H3.1"] += h3_rows(tf, name, signed(up), cands, years)
+    config = {"rsi": 14, "zone": 20, "k": 2, "up": UP, "inconclusive_sd": 5,
+              "alternative": "two-sided", "reps": 2000, "seed": 0, "fdr_q": 0.05}  # fmt: skip
+    for name, rs in rows.items():
+        for row, discovery in zip(rs, fdr([row["p"] for row in rs]), strict=True):
+            row["fdr"] = discovery
+        registry.log("trial", name, config, {"rows": rs})
+        with pl.Config(tbl_rows=-1, tbl_cols=-1):
+            print(name, pl.DataFrame(rs))
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
-    ap.add_argument("hypothesis", choices=["H1", "H2"])
-    {"H1": h1, "H2": h2}[ap.parse_args().hypothesis]()
+    ap.add_argument("hypothesis", choices=["H1", "H2", "H3"])
+    {"H1": h1, "H2": h2, "H3": h3}[ap.parse_args().hypothesis]()
 
 
 if __name__ == "__main__":
