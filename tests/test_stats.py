@@ -1,7 +1,16 @@
 import numpy as np
 import pytest
 
-from src.stats import bootstrap_difference, bootstrap_test, dsr, fdr, max_drawdown, psr, sharpe
+from src.stats import (
+    bootstrap_difference,
+    bootstrap_slope,
+    bootstrap_test,
+    dsr,
+    fdr,
+    max_drawdown,
+    psr,
+    sharpe,
+)
 
 
 def clustered(seed: int, effect: float = 0.0, months: int = 70, per_month: int = 10):
@@ -67,6 +76,25 @@ def test_difference_bootstrap_is_calibrated_and_recovers_a_planted_gap():
                    for s in range(100))  # fmt: skip
     assert 1 <= rejected <= 10
     found = [bootstrap_difference(*two_groups(s, 0.3), reps=500, seed=s) for s in range(50)]
+    assert sum(r["p"] < 0.05 for r in found) >= 45
+    assert sum(r["ci_low"] <= 0.3 <= r["ci_high"] for r in found) >= 42
+
+
+def sloped(seed: int, slope: float):
+    """y on x, with a slope that wanders from month to month, as a regime-dependent one does."""
+    rng = np.random.default_rng(seed)
+    blocks = np.repeat(np.arange(70), 10)
+    x = rng.normal(0, 1, blocks.size)
+    y = (slope + rng.normal(0, 0.3, 70)[blocks]) * x + rng.normal(0, 1, blocks.size)
+    return x, y, blocks
+
+
+def test_slope_bootstrap_is_calibrated_and_recovers_a_planted_slope():
+    rejected = sum(
+        bootstrap_slope(*sloped(s, 0.0), reps=500, seed=s)["p"] < 0.05 for s in range(200)
+    )
+    assert 4 <= rejected <= 18
+    found = [bootstrap_slope(*sloped(s, 0.3), reps=500, seed=s) for s in range(50)]
     assert sum(r["p"] < 0.05 for r in found) >= 45
     assert sum(r["ci_low"] <= 0.3 <= r["ci_high"] for r in found) >= 42
 

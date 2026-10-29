@@ -64,6 +64,26 @@ def bootstrap_difference(
     return _summary(est, boot[np.isfinite(boot)], alternative) | sizes
 
 
+def bootstrap_slope(
+    x, y, blocks, alternative: str = "two-sided", reps: int = 2000, seed: int = 0
+) -> dict:
+    """Least-squares slope sum(x·y) / sum(x²), resampling calendar blocks (H3).
+
+    x and y come demeaned within their strata, whose means are then taken as fixed.
+    """
+    vx, vy = np.asarray(x, dtype=float), np.asarray(y, dtype=float)
+    g = (
+        pl.DataFrame({"xy": vx * vy, "xx": vx * vx, "b": blocks})
+        .group_by("b")
+        .agg(pl.col("xy", "xx").sum())
+        .sort("b")
+    )
+    idx = np.random.default_rng(seed).integers(0, g.height, size=(reps, g.height))
+    xy, xx = (g[c].to_numpy()[idx].sum(axis=1) for c in ("xy", "xx"))
+    est = float(g["xy"].sum() / g["xx"].sum())
+    return _summary(est, xy / xx, alternative) | {"n": vx.size, "blocks": g.height}
+
+
 def _summary(est: float, boot: np.ndarray, alternative: str) -> dict:
     """Estimate, 95% percentile interval and a centred bootstrap p-value (H0: effect = 0)."""
     centred = boot - est
