@@ -11,7 +11,9 @@ that; counting the trials and fixing the rules before looking does.
 independent random draws with a matched baseline plus a calendar-block bootstrap, and §6 fixes the
 cost model. **Amended 2026-10-25, before any hypothesis was tested:** §6 prices slippage at the
 minute of each fill instead of at the hour's median, because fills cluster after fast moves, when
-the book is thinner.
+the book is thinner. **Amended 2026-10-29, before any trend hypothesis was tested:** §5 matches
+the baseline of hypotheses about trend itself without the trend component of R0, which is a rival
+trend signal there, and tests the full R0 match as a separate family.
 
 ---
 
@@ -73,6 +75,11 @@ No result is read in isolation. Every signal is compared with:
    every eligible bar of that stratum, which is the limit of repeating matched random draws. The
    effect under test is the mean difference between each event and its baseline. Its uncertainty
    comes from §7, not from the spread of random draws.
+
+   **Hypotheses about trend itself** (family B) are the exception. The trend component of R0 is a
+   trend signal, so matching on it would remove part of what is being tested. Their primary
+   baseline matches on asset, timeframe, R0 volatility tercile, direction and holding period. The
+   full R0 match is tested as a separate family, which asks what the signal adds to the regime.
 2. **Unconditional baseline:** the distribution of returns over all bars, plus buy-and-hold.
 3. **For hypotheses about levels** (Fibonacci, support/resistance): **arbitrary neighbouring
    levels**. A level working is not enough; it must work better than the levels next to it.
