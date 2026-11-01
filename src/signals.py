@@ -6,9 +6,12 @@ so that `tests/causality.py` can check them like any other feature.
     uv run python -m src.signals H1    # tests and logs H1 (run on a clean, committed tree)
     uv run python -m src.signals H2    # tests and logs H2a and H2b
     uv run python -m src.signals H3    # tests and logs H3.0 and H3.1
+    uv run python -m src.signals H4-shifted    # H4's bootstrap validation, logged; before H4
+    uv run python -m src.signals H4    # tests and logs H4.0 and H4.1
 """
 
 import argparse
+from datetime import datetime, timedelta
 
 import numpy as np
 import polars as pl
@@ -16,7 +19,7 @@ import polars as pl
 from src import registry
 from src.bars import asof
 from src.data import scan
-from src.events import HORIZONS, OUT, breakdown, complete_years, diffs, same_sign, study
+from src.events import HORIZONS, MINUTES, OUT, breakdown, complete_years, diffs, same_sign, study
 from src.indicators import atr, rsi
 from src.stats import bootstrap_difference, bootstrap_slope, bootstrap_test, fdr
 from src.universe import UNIVERSE
@@ -26,6 +29,8 @@ RECYCLE = 1.618
 FIB, CONTROL = [0.382, 0.5, 0.618], [0.45, 0.55, 0.70]
 SYNTHETIC, BLOCK = 20, 24  # H2a null 2: replicates, and bars per resampled block
 UP = {"1h": "4h", "4h": "1d"}  # H3.1: the RSI of the next timeframe up
+LOOKBACK = {"1h": [24, 168, 672], "4h": [6, 42, 168], "1d": [1, 7, 28]}  # 1 day, 1 week, 4 weeks
+SHIFTS, MIN_SHIFT, MAX_REJECTED = 100, 180, 0.08  # H4 validation: shifts, days, share at p < 0.05
 
 
 def setup_counts(close: np.ndarray) -> np.ndarray:
@@ -379,6 +384,11 @@ def h2() -> None:
             rows["H2b"] += h2b_rows(tf, k, touch_events(bars, k), cands, years)
     config = {"fib": FIB, "control": CONTROL, "k": [2, 3], "synthetic": SYNTHETIC, "block": BLOCK,
               "alternative": "greater", "reps": 2000, "seed": 0, "fdr_q": 0.05}  # fmt: skip
+    report(rows, config)
+
+
+def report(rows: dict[str, list[dict]], config: dict) -> None:
+    """FDR within each family, then one logged trial per family."""
     for name, rs in rows.items():
         for row, discovery in zip(rs, fdr([row["p"] for row in rs]), strict=True):
             row["fdr"] = discovery
@@ -453,18 +463,100 @@ def h3() -> None:
                 rows["H3.1"] += h3_rows(tf, name, signed(up), cands, years)
     config = {"rsi": 14, "zone": 20, "k": 2, "up": UP, "inconclusive_sd": 5,
               "alternative": "two-sided", "reps": 2000, "seed": 0, "fdr_q": 0.05}  # fmt: skip
-    for name, rs in rows.items():
-        for row, discovery in zip(rs, fdr([row["p"] for row in rs]), strict=True):
-            row["fdr"] = discovery
-        registry.log("trial", name, config, {"rows": rs})
-        with pl.Config(tbl_rows=-1, tbl_cols=-1):
-            print(name, pl.DataFrame(rs))
+    report(rows, config)
+
+
+def momentum(bars: pl.DataFrame, lookback: int) -> pl.DataFrame:
+    """s = ln C[t] − ln C[t−L] per bar (H4), null for the first L bars. Bars are contiguous, since
+    outages are padded (DATA.md §3), so L rows back is L bars back."""
+    s = pl.col("close").log().diff(lookback).over("symbol")
+    return bars.sort("symbol", "time").select("symbol", "time", s=s)
+
+
+def trend_events(signal: pl.DataFrame) -> pl.DataFrame:
+    """Every bar with a signal is an event in the direction of its sign; s = 0 is dropped (H4)."""
+    direction = pl.col("s").sign().cast(pl.Int64)
+    return signal.filter(pl.col("s") != 0).select("symbol", "time", direction=direction)
+
+
+def by_vol(cands: pl.DataFrame) -> pl.DataFrame:
+    """Candidates stratified by symbol × R0 volatility tercile only, H4.0's baseline: the R0 trend
+    is itself a trend signal (PROTOCOL §5)."""
+    return cands.with_columns(cell=pl.col("cell").str.split("/").list.last())
+
+
+def shift(signal: pl.DataFrame, days: int, start: datetime, span: timedelta) -> pl.DataFrame:
+    """The signal moved `days` later on a circular calendar of length `span` from `start`."""
+    t = pl.col("time") + timedelta(days=days)
+    return signal.with_columns(time=pl.when(t >= start + span).then(t - span).otherwise(t))
+
+
+def closes(tf: str, cands: pl.DataFrame) -> pl.DataFrame:
+    symbols = cands["symbol"].unique().sort().to_list()
+    return scan(f"bars/{tf}", symbols).select("symbol", "time", "close").collect()
+
+
+def h4() -> None:
+    """H4.0 against symbol × volatility tercile and H4.1 against symbol × R0 cell, each over
+    timeframe × lookback × horizon, 27 cells, two-sided. One FDR family each."""
+    rows = {"H4.0": [], "H4.1": []}
+    for tf in HORIZONS:
+        cands = pl.read_parquet(OUT / f"candidates_{tf}.parquet")
+        bars, baselines = closes(tf, cands), {"H4.0": by_vol(cands), "H4.1": cands}
+        for lookback in LOOKBACK[tf]:
+            events = trend_events(momentum(bars, lookback))
+            for name, c in baselines.items():
+                result = study(events, c, tf, alternative="two-sided")
+                rows[name] += [{"tf": tf, "lookback": lookback} | r for r in result.to_dicts()]
+    config = {"lookback": LOOKBACK, "alternative": "two-sided", "reps": 2000, "seed": 0,
+              "fdr_q": 0.05}  # fmt: skip
+    report(rows, config)
+
+
+def h4_shifted() -> None:
+    """H4's bootstrap validation: the H4.0 test on signals moved by a random calendar offset,
+    common to every symbol, of at least MIN_SHIFT days either way round the dataset's calendar.
+    An event whose shifted signal comes from outside its symbol's history drops out. p < 0.05 may
+    occur in at most MAX_REJECTED of the tests; otherwise family B resamples quarters."""
+    rng, rows, ps = np.random.default_rng(0), [], []
+    for tf in HORIZONS:
+        cands = by_vol(pl.read_parquet(OUT / f"candidates_{tf}.parquet"))
+        bars = closes(tf, cands)
+        start = bars["time"].min()
+        span = bars["time"].max() - start + timedelta(minutes=MINUTES[tf])
+        offsets = rng.integers(MIN_SHIFT, span.days - MIN_SHIFT + 1, size=SHIFTS)
+        for lookback in LOOKBACK[tf]:
+            s = momentum(bars, lookback)
+            p, n = {h: [] for h in HORIZONS[tf]}, {h: [] for h in HORIZONS[tf]}
+            for i, days in enumerate(offsets):
+                events = trend_events(shift(s, int(days), start, span))
+                for h in HORIZONS[tf]:
+                    d = diffs(events, cands, h)
+                    p[h].append(bootstrap_test(d["diff"], d["month"], "two-sided", seed=i)["p"])
+                    n[h].append(d.height)
+            for h in HORIZONS[tf]:
+                rows.append({"tf": tf, "lookback": lookback, "horizon": h,
+                             "rejected": float(np.mean(np.array(p[h]) < 0.05)),
+                             "min_n": min(n[h]), "max_n": max(n[h])})  # fmt: skip
+                ps += p[h]
+    rejected = float(np.mean(np.array(ps) < 0.05))
+    results = {"rows": rows, "tests": len(ps), "rejected": rejected,
+               "passed": rejected <= MAX_REJECTED,
+               "p_deciles": np.histogram(ps, bins=10, range=(0, 1))[0].tolist()}  # fmt: skip
+    config = {"lookback": LOOKBACK, "shifts": SHIFTS, "min_shift_days": MIN_SHIFT,
+              "offset": "common to every symbol", "max_rejected": MAX_REJECTED,
+              "alternative": "two-sided", "reps": 2000, "seed": 0}  # fmt: skip
+    registry.log("validation", "H4.shifted_signals", config, results)
+    with pl.Config(tbl_rows=-1, tbl_cols=-1):
+        print(pl.DataFrame(rows))
+    print({k: v for k, v in results.items() if k != "rows"})
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
-    ap.add_argument("hypothesis", choices=["H1", "H2", "H3"])
-    {"H1": h1, "H2": h2, "H3": h3}[ap.parse_args().hypothesis]()
+    ap.add_argument("hypothesis", choices=["H1", "H2", "H3", "H4-shifted", "H4"])
+    runs = {"H1": h1, "H2": h2, "H3": h3, "H4-shifted": h4_shifted, "H4": h4}
+    runs[ap.parse_args().hypothesis]()
 
 
 if __name__ == "__main__":

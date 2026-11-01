@@ -1,3 +1,4 @@
+import math
 from datetime import timedelta
 
 import numpy as np
@@ -5,20 +6,25 @@ import polars as pl
 import pytest
 
 from src.bars import resample
+from src.events import study
 from src.signals import (
     FIB,
     TD,
+    by_vol,
     excess,
     h2a_rows,
     h2b_rows,
     h3_rows,
+    momentum,
     retracements,
+    shift,
     signed,
     swings,
     synthetic,
     td_sequential,
     touch_events,
     touches,
+    trend_events,
     zigzag,
 )
 from tests.causality import assert_causal
@@ -227,3 +233,34 @@ def test_h3_recovers_a_planted_slope_within_regime_cells():
     rows = h3_rows("1h", "planted", events, cands, pl.Series([2022]))
     assert rows[0]["effect"] == pytest.approx(0.02, abs=0.003) and rows[0]["p"] < 0.01
     assert rows[0]["supportive_n"] + rows[0]["neutral_n"] + rows[0]["opposing_n"] == n
+
+
+def test_momentum_is_the_log_return_over_the_lookback_and_flat_bars_are_no_event():
+    s = momentum(bars([100.0, 110, 99, 99]), 1)
+    assert s["s"][0] is None
+    assert s["s"][1:].to_list() == pytest.approx([math.log(1.1), math.log(0.9), 0])
+    assert trend_events(s)["direction"].to_list() == [1, -1]
+    hourly = resample(walk(40_000, timedelta(minutes=1)), "1h")
+    assert_causal(lambda b: momentum(b, 24), hourly, ["s"])
+
+
+def test_shift_wraps_round_the_calendar():
+    days = pl.DataFrame({"symbol": "BTCUSDT", "time": [T0 + timedelta(days=i) for i in range(10)],
+                         "s": range(10)})  # fmt: skip
+    moved = shift(days, 3, T0, timedelta(days=10)).sort("time")
+    assert moved["time"].equals(days["time"]) and moved["s"].to_list() == [7, 8, 9, *range(7)]
+
+
+def test_the_h4_baselines_differ_only_in_the_r0_trend():
+    # Bars in R0 trend +1 drift +1 ATR, those in -1 drift -1, and events follow the trend. Against
+    # symbol × volatility (H4.0) they earn the drift; against the full R0 cell (H4.1), nothing.
+    rng = np.random.default_rng(0)
+    trend = np.where(np.arange(6000) % 2 == 0, 1, -1)
+    cands = pl.DataFrame(
+        {"symbol": "BTCUSDT", "time": [T0 + timedelta(hours=i) for i in range(6000)],
+         "cell": [f"{t}/0" for t in trend], "r4": trend + rng.normal(0, 1, 6000)}
+    ).with_columns(month=pl.col("time").dt.truncate("1mo"), r12="r4", r24="r4")  # fmt: skip
+    events = cands.select("symbol", "time", direction=pl.Series(trend))
+    h40, h41 = (study(events, c, "1h", "two-sided", reps=200) for c in (by_vol(cands), cands))
+    assert h40["effect"][0] == pytest.approx(1, abs=0.05) and h40["p"][0] < 0.01
+    assert abs(h41["effect"][0]) < 0.05
