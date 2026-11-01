@@ -240,7 +240,8 @@ it is worth including.
 
 ## H4: Time-series momentum
 
-**Status:** pre-registered.
+**Status:** rejected in all cells of H4.0 and H4.1, before the hold-out (1 November 2026;
+[RESULTS.md](RESULTS.md)). H4.2 was not run, since no cell was confirmed.
 
 **Family B** (FOUNDATIONS §4) asks whether time-series momentum holds at intraday and swing
 horizons, net of costs, and whether trend filters can be designed by their frequency response
@@ -336,7 +337,8 @@ open. The future-invariance test is applied.
 
 ## H5: Trend filters designed by their frequency response
 
-**Status:** pre-registered. Run only on the cells that H4 confirms.
+**Status:** not run, since H4 confirmed no cell (1 November 2026). It was to run only on the cells
+that H4 confirms.
 
 **Rationale:** every linear trend rule is a weighted sum of past returns, so its behaviour follows
 from its kernel (Levine & Pedersen, 2016). The H4 signal is a box kernel over the last L returns.

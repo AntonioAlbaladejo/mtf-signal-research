@@ -223,3 +223,92 @@ regimes.
   zero for the rest, but there are only 30 of them.
 - **For phase 4,** H3.0 gives no evidence that RSI, as a linear term within R0, adds information
   to these events.
+
+---
+
+## H4: Time-series momentum
+
+**Run:** 1 November 2026, commit `6f2ce66`, clean tree. Data from July 2020 to the hold-out, 69
+symbols. The hold-out was not opened.
+
+**Verdict: rejected in all 27 cells of H4.0 and all 27 of H4.1.** No effect survives the FDR
+control at q = 0.05. The smallest p-values, 0.0145 in H4.0 and 0.0345 in H4.1, both for the 1h
+signal with a 1-week lookback over 4 bars, would have needed to be below 0.0019, the
+Benjamini-Hochberg threshold for the first of 27. Since no cell was confirmed, the H4.2 strategy
+and H5 were not run, and no cell is checked on the hold-out.
+
+**Validation before the test.** On H4.0 signals shifted by a random calendar offset, common to
+every symbol and of at least 180 days either way, p < 0.05 occurred in 4.9 % of the 2,700 tests,
+against the 8 % allowed. The p-values were close to uniform, 249 to 312 per decile against 270
+expected, and the rejection rate of each cell over its 100 shifts ranged from 1 % to 10 %. The
+calendar-month blocks were therefore kept. Events whose shifted signal fell outside their
+symbol's history dropped out, so each shifted test kept 78 % to 100 % of the events.
+
+These p-values are two-sided: a positive effect means momentum and a negative one reversal. Every
+candidate bar is an event, in the direction of the sign of its return over the lookback. Its
+baseline is the mean of the same symbol and R0 volatility tercile in H4.0, and of the same symbol
+and full R0 cell in H4.1 (PROTOCOL §5). Effects are in ATR units of the event's timeframe.
+
+**H4.0**
+
+| Timeframe | Lookback (bars) | n | Horizons (bars) | Effect [95 % interval] · p | | | Years | Assets |
+|---|---|---|---|---|---|---|---|---|
+| 1h | 1 day (24) | 428,281 | 4, 12, 24 | +0.006 [-0.005, +0.018] · 0.2914 | +0.007 [-0.026, +0.044] · 0.6682 | +0.020 [-0.044, +0.090] · 0.5572 | 4/1/2 | 0.51/0.39/0.42 |
+| 1h | 1 week (168) | 428,527 | 4, 12, 24 | +0.019 [+0.004, +0.033] · 0.0145 | +0.050 [+0.006, +0.093] · 0.0270 | +0.083 [-0.001, +0.161] · 0.0465 | 5/5/5 | 0.57/0.57/0.54 |
+| 1h | 4 weeks (672) | 428,606 | 4, 12, 24 | +0.004 [-0.009, +0.018] · 0.5372 | +0.014 [-0.025, +0.054] · 0.4673 | +0.024 [-0.054, +0.109] · 0.5392 | 2/3/3 | 0.39/0.36/0.33 |
+| 4h | 1 day (6) | 107,055 | 3, 6, 12 | +0.002 [-0.016, +0.020] · 0.8521 | +0.008 [-0.024, +0.043] · 0.6277 | +0.035 [-0.016, +0.091] · 0.1934 | 1/2/4 | 0.36/0.41/0.41 |
+| 4h | 1 week (42) | 107,113 | 3, 6, 12 | +0.023 [+0.002, +0.042] · 0.0260 | +0.037 [-0.001, +0.073] · 0.0555 | +0.046 [-0.031, +0.120] · 0.2494 | 5/5/4 | 0.52/0.55/0.49 |
+| 4h | 4 weeks (168) | 107,134 | 3, 6, 12 | +0.010 [-0.009, +0.029] · 0.2769 | +0.016 [-0.021, +0.057] · 0.3803 | +0.030 [-0.045, +0.110] · 0.4148 | 3/3/3 | 0.39/0.35/0.32 |
+| 1d | 1 day (1) | 17,840 | 1, 3, 5 | +0.001 [-0.015, +0.017] · 0.9190 | +0.020 [-0.006, +0.048] · 0.1389 | +0.012 [-0.022, +0.048] · 0.4863 | 3/3/3 | 0.43/0.43/0.46 |
+| 1d | 1 week (7) | 17,849 | 1, 3, 5 | +0.015 [+0.000, +0.030] · 0.0465 | +0.026 [-0.017, +0.072] · 0.2584 | +0.021 [-0.044, +0.091] · 0.5552 | 5/4/2 | 0.55/0.49/0.45 |
+| 1d | 4 weeks (28) | 17,850 | 1, 3, 5 | +0.010 [-0.004, +0.026] · 0.1999 | +0.028 [-0.015, +0.073] · 0.2094 | +0.049 [-0.020, +0.122] · 0.1714 | 5/4/4 | 0.30/0.35/0.38 |
+
+**H4.1**
+
+| Timeframe | Lookback (bars) | n | Horizons (bars) | Effect [95 % interval] · p | | | Years | Assets |
+|---|---|---|---|---|---|---|---|---|
+| 1h | 1 day (24) | 428,281 | 4, 12, 24 | +0.005 [-0.006, +0.017] · 0.4148 | +0.004 [-0.030, +0.040] · 0.8381 | +0.014 [-0.050, +0.084] · 0.6797 | 3/1/2 | 0.51/0.43/0.39 |
+| 1h | 1 week (168) | 428,527 | 4, 12, 24 | +0.015 [+0.002, +0.029] · 0.0345 | +0.042 [+0.000, +0.084] · 0.0500 | +0.071 [-0.008, +0.146] · 0.0755 | 4/4/5 | 0.68/0.65/0.61 |
+| 1h | 4 weeks (672) | 428,606 | 4, 12, 24 | -0.003 [-0.015, +0.011] · 0.6412 | -0.003 [-0.041, +0.037] · 0.8686 | -0.004 [-0.079, +0.079] · 0.9195 | 3/3/2 | 0.62/0.59/0.59 |
+| 4h | 1 day (6) | 107,055 | 3, 6, 12 | +0.000 [-0.017, +0.018] · 0.9695 | +0.006 [-0.026, +0.040] · 0.7141 | +0.031 [-0.019, +0.086] · 0.2334 | 1/2/4 | 0.39/0.41/0.46 |
+| 4h | 1 week (42) | 107,113 | 3, 6, 12 | +0.019 [-0.001, +0.037] · 0.0570 | +0.032 [-0.004, +0.066] · 0.0870 | +0.042 [-0.030, +0.113] · 0.2579 | 5/5/3 | 0.65/0.67/0.58 |
+| 4h | 4 weeks (168) | 107,134 | 3, 6, 12 | +0.001 [-0.017, +0.020] · 0.9260 | +0.003 [-0.033, +0.043] · 0.8731 | +0.011 [-0.058, +0.089] · 0.7561 | 2/3/3 | 0.39/0.38/0.35 |
+| 1d | 1 day (1) | 17,840 | 1, 3, 5 | +0.000 [-0.015, +0.016] · 0.9940 | +0.017 [-0.008, +0.044] · 0.2064 | +0.006 [-0.025, +0.041] · 0.7046 | 3/3/3 | 0.43/0.46/0.43 |
+| 1d | 1 week (7) | 17,849 | 1, 3, 5 | +0.011 [-0.003, +0.026] · 0.1184 | +0.019 [-0.021, +0.063] · 0.3748 | +0.011 [-0.051, +0.076] · 0.7341 | 4/4/2 | 0.62/0.52/0.55 |
+| 1d | 4 weeks (28) | 17,850 | 1, 3, 5 | +0.003 [-0.011, +0.018] · 0.6752 | +0.013 [-0.028, +0.056] · 0.5262 | +0.029 [-0.038, +0.099] · 0.3883 | 1/3/2 | 0.36/0.35/0.39 |
+
+**Breakdown at the longest horizon**
+
+| Timeframe | Lookback | H4.0: BTC · ETH · other | H4.1: BTC · ETH · other |
+|---|---|---|---|
+| 1h | 1 day | +0.09 · +0.09 · -0.00 | +0.07 · +0.08 · -0.00 |
+| 1h | 1 week | +0.06 · +0.11 · +0.08 | -0.03 · +0.05 · +0.09 |
+| 1h | 4 weeks | +0.20 · +0.13 · -0.02 | +0.07 · +0.04 · -0.02 |
+| 4h | 1 day | +0.12 · +0.08 · +0.01 | +0.10 · +0.06 · +0.02 |
+| 4h | 1 week | +0.05 · +0.04 · +0.05 | -0.03 · -0.02 · +0.06 |
+| 4h | 4 weeks | +0.16 · +0.13 · -0.01 | +0.05 · +0.05 · -0.00 |
+| 1d | 1 day | +0.05 · +0.04 · +0.00 | +0.03 · +0.02 · -0.00 |
+| 1d | 1 week | +0.04 · +0.01 · +0.02 | -0.03 · -0.04 · +0.03 |
+| 1d | 4 weeks | +0.15 · +0.14 · +0.02 | +0.05 · +0.06 · +0.02 |
+
+**What stands out.** These are descriptive observations, not findings.
+
+- **Every H4.0 effect is positive, but that is not 27 pieces of evidence:** the cells share their
+  events and overlap in lookback and horizon. The closest cells all use a 1-week lookback, with p
+  from 0.015 to 0.047 at 1h, 0.026 at 4h over 3 bars and 0.047 at 1d over 1 bar, and at 1h the
+  sign holds in all five years. They fail on assets, where it holds in 52 % to 57 % of symbols
+  against the two thirds required. They are also small: 0.02 to 0.08 ATR at 1h is 2.5 to 11 bps at
+  the median 1h ATR, and 0.015 ATR at 1d is about 12 bps.
+- **With a 4-week lookback, the momentum is that of BTC and ETH.** At the longest horizon their
+  effects are +0.13 to +0.20 ATR in H4.0, against about zero for the other assets, and the sign
+  holds in only 30 % to 39 % of symbols. Matching on the full R0 cell (H4.1) removes most of it,
+  as the 87 % agreement between this signal and the R0 trend implies. It resembles the contrast
+  between the largest coins and the rest that Zaremba et al. (2021) report for daily returns,
+  although here the other assets show no momentum rather than a reversal.
+- **At 1 week, what the signal adds to R0 lies mostly in the other assets.** In H4.1, at the
+  longest horizon, BTC falls to −0.03 at every timeframe and ETH to between −0.04 and +0.05,
+  while the other assets keep +0.03 to +0.09.
+- **The disclosed partial look did not anticipate the outcome.** In the three cells where the
+  lookback equals the horizon, the sign of consecutive daily returns had flipped on 52.6 % to
+  53.0 % of occasions. Their H4.0 effects are +0.020, +0.008 and +0.001 ATR, with p from 0.56 to
+  0.92: no reversal once returns are weighted by size and matched to their baseline.
