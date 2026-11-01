@@ -2,12 +2,13 @@
 
 **Phase 3.** The outcome of each pre-registered test, as logged in `research/trials.jsonl`.
 
-An effect is the forward return after an event minus its matched baseline (the mean of the same
-symbol and R0 cell), in ATR units and in the predicted direction: positive means the signal works
-as the hypothesis says. Intervals are 95 % calendar-month block bootstrap intervals, and p-values
-are one-sided in the predicted direction (ENGINE.md §5). "Years" counts the complete years, out
-of five (2021 to 2025), whose mean has the sign of the effect; "assets" is the same share over
-symbols. Stability requires two thirds of each (PROTOCOL §7).
+An effect is the forward return after an event minus its matched baseline (by default, the mean
+of the same symbol and R0 cell), in ATR units and in the predicted direction: positive means the
+signal works as the hypothesis says. Intervals are 95 % calendar-month block bootstrap intervals,
+and p-values are one-sided in the predicted direction (ENGINE.md §5). Where a hypothesis uses
+another baseline or a two-sided test (H3, H4), its section says so. "Years" counts the complete
+years, out of five (2021 to 2025), whose mean has the sign of the effect; "assets" is the same
+share over symbols. Stability requires two thirds of each (PROTOCOL §7).
 
 ---
 

@@ -4,9 +4,11 @@ Research platform for systematic trading of crypto perpetual futures: multi-time
 order-book-aware execution, and a research protocol designed to tell a real effect from a lucky
 backtest.
 
-**Status:** phases 1 (data) and 2 (engine) complete; phase 3 (hypotheses) in progress. There is **no
-claim of profitability**. Profitability is a hypothesis under test. If nothing beats a
-cost-adjusted random baseline, that is the result, and it will be documented as such.
+**Status:** phases 1 (data) and 2 (engine) complete; phase 3 (hypotheses) in progress. Classical
+technical analysis (H1-H3) and time-series momentum (H4) have been tested and rejected before the
+hold-out ([RESULTS.md](docs/RESULTS.md)). There is **no claim of profitability**. Profitability is
+a hypothesis under test. If nothing beats a cost-adjusted random baseline, that is the result, and
+it will be documented as such.
 
 ## Approach
 
