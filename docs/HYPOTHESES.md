@@ -9,6 +9,7 @@ new variant, which counts as one more trial. Possible statuses: `pre-registered`
 Family A (classical TA) goes first. These tools can be defined precisely, are widely used and are
 rarely tested against proper nulls, and testing them exercises the whole pipeline (FOUNDATIONS
 D-10). The other families in the research agenda are pre-registered when their turn comes.
+Family B (trend and momentum) starts at H4.
 
 ---
 
@@ -234,3 +235,147 @@ stratified by R0.
 **Phase 4:** the most faithful form of a non-decisive confirmation is RSI as a feature of the
 meta-model, where its weight is learned and the calibrated probability decides. H3.0 tells whether
 it is worth including.
+
+---
+
+## H4: Time-series momentum
+
+**Status:** pre-registered.
+
+**Family B** (FOUNDATIONS §4) asks whether time-series momentum holds at intraday and swing
+horizons, net of costs, and whether trend filters can be designed by their frequency response
+instead of being tuned. The question predates every test in this file. Family A's results
+described continuation after intraday exhaustion signals. That observation did not shape this
+entry, which follows the literature, and it would need data not used here to count as evidence.
+
+**Rationale:** time-series momentum, an asset's own past return predicting its future return, is
+among the best-documented effects across asset classes (Moskowitz, Ooi & Pedersen, 2012). It has
+been reported for cryptocurrencies at daily and weekly horizons (Liu & Tsyvinski, 2021) and within
+the day for Bitcoin (Shen, Urquhart & Wang, 2022). At the shortest horizons the evidence is mixed:
+across thousands of coins the previous day's return reverses, while the largest and most liquid
+coins show daily momentum instead (Zaremba et al., 2021). The test is therefore two-sided.
+
+**Signal:** at the close of every bar, s = ln C[t] − ln C[t−L], the return over the last L bars.
+Every candidate bar is an event, with direction sign(s); bars with s = 0 are dropped. The effect is
+then the covariance between the sign of the signal and the forward return within each stratum:
+positive means momentum, negative means reversal.
+
+**Lookbacks,** fixed in calendar time: 1 day, 1 week and 4 weeks.
+
+| Timeframe | L (bars) | Horizons (bars) |
+|---|---|---|
+| 1h | 24, 168, 672 | 4, 12, 24 |
+| 4h | 6, 42, 168 | 3, 6, 12 |
+| 1d | 1, 7, 28 | 1, 3, 5 |
+
+**Variants:**
+
+| Variant | Baseline | Question |
+|---|---|---|
+| H4.0 (primary) | Symbol × R0 volatility tercile (PROTOCOL §5) | Is there momentum or reversal beyond each asset's drift? |
+| H4.1 | Symbol × R0 cell | Does the signal add anything to the R0 regime? |
+| H4.2 | A net strategy, run only on the cells that H4.0 or H4.1 confirm | Does it survive costs? |
+
+**Statistics (H4.0, H4.1):** the event-minus-baseline mean in ATR units, with the calendar-month
+block bootstrap, two-sided, at the common horizons. FDR is controlled separately for H4.0 and for
+H4.1, each with 27 cells (3 timeframes × 3 lookbacks × 3 horizons).
+
+**Criterion (H4.0, H4.1):** confirmed in a cell if it survives FDR and is stable (PROTOCOL §7); its
+sign gives the reading. Like H3.0, these measure information, and the economic threshold applies
+to H4.2.
+
+**Validation before the test.** Consecutive events share most of their lookback, so the signal
+persists for weeks and straddles month boundaries, unlike the sparse events on which the bootstrap
+was calibrated (ENGINE.md §6). Before H4 runs, the bootstrap is run on H4.0 signals computed from
+each symbol's own prices, shifted circularly by a random offset of at least 180 days. That keeps
+the persistence and removes any link with the forward returns. Over 100 shifts per cell, p < 0.05
+must occur in at most 8 % of the 2,700 tests. Otherwise family B resamples calendar quarters
+instead of months, and the check is repeated.
+
+**Measured before the test,** on the research period:
+
+- **Overlap with R0.** The R0 trend is neutral on 9.4 % of candidate bars. Where it is not, the
+  sign of s agrees with it on 55 % of bars with a 1-day lookback, 74 % with 1 week and 87 % with
+  4 weeks. At 4 weeks, H4.1 has little variation within a cell to work with.
+- **Balance.** 47 % to 49 % of the signals are long, at every lookback.
+- **A partial look at the outcome.** The flip rates measured for H5 compare the signal at t with
+  the signal h bars later, which uses returns after t. Where h equals L, that is, at the 1-day
+  lookback with a 1-day horizon (1h: L = h = 24; 4h: L = h = 6; 1d: L = h = 1), the measurement
+  is the sign of consecutive daily returns. It flipped on 52.6 % to 53.0 % of occasions, against
+  50 % without autocorrelation. The grid, the kernels and the two-sided test were fixed before
+  that measurement and were not changed after it, and those three cells stay in their families.
+
+**H4.2, the strategy,** fixed now and run only on confirmed cells, in the direction of the
+confirmed effect: with the signal for momentum, against it for reversal.
+
+- **Positions:** every h bars, at closes counted from the Unix epoch, the position on each
+  universe symbol takes the direction of the signal, filled at the next traded 1-minute open. A
+  position whose direction is unchanged is kept, with no trade. If the rebalance bar is
+  untradable, the position is kept until the next rebalance. A symbol that has left the universe
+  is closed at its next rebalance.
+- **Size:** set at entry, so that one ATR(14) of the decision timeframe is the same fraction of
+  equity for every asset (PROTOCOL §8). There is no stop or target: exit policies are a separate
+  ablation (FOUNDATIONS §6).
+- **Costs:** the engine's taker fees on both sides, slippage at the fill minute and hourly funding
+  (PROTOCOL §6). A reversal pays both sides.
+- **Returns:** open positions are marked to market daily at 00:00 UTC. Daily portfolio returns are
+  reported gross and net, from 2023-05-20 as well, and against buy-and-hold at equal risk.
+- **Criterion:** a Deflated Sharpe Ratio of the net daily returns above 0.95, with a trial count
+  that includes every strategy run in family B (H4.2 and H5.1) at the time of reading; at least
+  100 position changes; a maximum drawdown no larger than twice the annualised volatility of the
+  daily returns; and a positive net mean in at least 2/3 of the complete years and of the assets.
+
+**Hold-out:** each cell confirmed by H4.0 or H4.1 is checked once on the hold-out. Its effect must
+keep its sign, and if its H4.2 strategy passed, its net mean return must be positive there too.
+Six months make this a check of sign, not of significance.
+
+**Causality:** s uses closes up to the event bar, and forward returns start at the next traded
+open. The future-invariance test is applied.
+
+---
+
+## H5: Trend filters designed by their frequency response
+
+**Status:** pre-registered. Run only on the cells that H4 confirms.
+
+**Rationale:** every linear trend rule is a weighted sum of past returns, so its behaviour follows
+from its kernel (Levine & Pedersen, 2016). The H4 signal is a box kernel over the last L returns.
+Price above its exponential moving average is an exponential kernel, and so is the steady-state
+Kalman estimate of a drift that follows a random walk, observed through white-noise returns:
+matching its lag fixes the noise ratio. Kernels of equal lag differ in how much of the most recent
+returns they pass, which sets how often the sign of the signal flips and therefore what it costs
+to trade. Under white-noise returns, the probability that the sign differs between two decisions h
+bars apart is arccos(ρ_h)/π, where ρ_h is the kernel's autocorrelation at lag h. That prediction
+needs no return data.
+
+**Kernels,** all with the same centre of mass, (L − 1)/2 bars, with L from H4:
+
+| Kernel | Weight on the return k bars back | As a rule |
+|---|---|---|
+| Box (H4) | 1 for k < L | Price above its level L bars ago |
+| 1-pole | (1 − α)^k, α = 2/(L + 1) | Price above its EMA(L); the steady-state Kalman filter of a random-walk drift |
+| 2-pole, critically damped | (k + 1)(1 − α)^k, α = 4/(L + 3) | The EMA of the EMA of returns |
+
+At L = 1 the three coincide, so the 1-day lookback on the daily timeframe has no H5 cell.
+Predicted flip probabilities at 1h with L = 168, for example: 0.070, 0.097 and 0.029 at h = 4, and
+0.172, 0.229 and 0.152 at h = 24. When h ≥ L the differences shrink: all three lie between 0.45
+and 0.5.
+
+**Variants:**
+
+- **H5.0, information:** in each confirmed cell, the paired difference between the effect of each
+  alternative kernel and that of the box, with the events, baseline and bootstrap of the family
+  that confirmed the cell. Two-sided.
+- **H5.1, net:** in each confirmed cell with h < L, the H4.2 strategy with each kernel, and the
+  paired difference of its daily net returns against the box, bootstrapped by calendar month.
+  One-sided, in the direction that the flip probabilities predict: the kernel that flips less is
+  expected to earn more.
+
+**Criterion:** FDR is controlled separately for H5.0 and H5.1, each over all its comparisons, and
+stability is required as in PROTOCOL §7. A confirmed H5.1 comparison supports choosing a trend
+filter by its frequency response; H5.0 says whether the shape of the kernel changes the
+information.
+
+**Measured before the test:** on the research period, the flip rates of the three kernels are
+within 0.03 of the white-noise prediction at every timeframe, lookback and horizon. H4 discloses
+what that measurement revealed about the outcome.
